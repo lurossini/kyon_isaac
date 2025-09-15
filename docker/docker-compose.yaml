@@ -1,6 +1,8 @@
 x-default-isaac-lab-template-environment: &default-isaac-lab-template-environment
   - OMNI_KIT_ALLOW_ROOT=1
   - DISPLAY
+  - XAUTHORITY=/root/.Xauthority
+  - ACCEPT_EULA=Y
 
 x-default-isaac-lab-template-deploy: &default-isaac-lab-template-deploy
   resources:
@@ -13,15 +15,12 @@ x-default-isaac-lab-template-deploy: &default-isaac-lab-template-deploy
 services:
   kyon-isaac-base:
     env_file: .env.base
-      #build:
-      #context: ../
-      #dockerfile: docker/Dockerfile
-      #args:
-      #  ISAACLAB_BASE_IMAGE_ARG: isaac-lab-base
-      #  DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH_ARG: .
-    image: kyon-isaac-base
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
     container_name: kyon-isaac-base
     volumes:
+      - $XAUTHORITY:/root/.Xauthority:rw
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - type: bind
         source: ../
@@ -30,6 +29,7 @@ services:
     environment: *default-isaac-lab-template-environment
     deploy: *default-isaac-lab-template-deploy
     # This is the entrypoint for the container
-    entrypoint: bash
     stdin_open: true
     tty: true
+    entrypoint: ''
+    command: bash -ic 'pip install -e /workspace/kyon_isaac/source/kyon_isaac; bash -i'
