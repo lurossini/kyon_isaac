@@ -1,7 +1,7 @@
 ARG ISAACLAB_BASE_IMAGE_ARG
 
 # we use the basic isaaclab image as the base
-FROM ${ISAACLAB_BASE_IMAGE_ARG} AS base
+FROM isaac-lab-base AS base
 
 ARG DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH_ARG
 ENV DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH=${DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH_ARG}
@@ -9,12 +9,12 @@ ENV DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH=${DOCKER_ISAACLAB_EXTENSION_TEMPLATE
 USER root
 
 # Copy the Isaac Lab Extension Template directory (files to exclude are defined in .dockerignore)
-COPY ../ ${DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH}
+#COPY ../ ${DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH}
 
 # # Install whatever you need as additional dependencies.
-RUN bash -i -c "source ${HOME}/.bashrc && \
-    cd ${DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH}/source/ext_template && \
-    pip install -e ."
+#RUN bash -i -c "source ${HOME}/.bashrc && \
+#    cd ${DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH}/source/kyon_isaac && \
+#    pip install -e ."
 
 # make working directory as the Isaac Lab directory
 # this is the default directory when the container is run

@@ -1,5 +1,6 @@
 x-default-isaac-lab-template-environment: &default-isaac-lab-template-environment
   - OMNI_KIT_ALLOW_ROOT=1
+  - DISPLAY
 
 x-default-isaac-lab-template-deploy: &default-isaac-lab-template-deploy
   resources:
@@ -10,20 +11,21 @@ x-default-isaac-lab-template-deploy: &default-isaac-lab-template-deploy
           capabilities: [ gpu ]
 
 services:
-  isaac-lab-template:
+  kyon-isaac-base:
     env_file: .env.base
-    build:
-      context: ../
-      dockerfile: docker/Dockerfile
-      args:
-        - ISAACLAB_BASE_IMAGE_ARG=${ISAACLAB_BASE_IMAGE}
-        - DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH_ARG=${DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH}
-    image: isaac-lab-template
-    container_name: isaac-lab-template
+      #build:
+      #context: ../
+      #dockerfile: docker/Dockerfile
+      #args:
+      #  ISAACLAB_BASE_IMAGE_ARG: isaac-lab-base
+      #  DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH_ARG: .
+    image: kyon-isaac-base
+    container_name: kyon-isaac-base
     volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - type: bind
         source: ../
-        target: ${DOCKER_ISAACLAB_EXTENSION_TEMPLATE_PATH}
+        target: /workspace/kyon_isaac
     network_mode: host
     environment: *default-isaac-lab-template-environment
     deploy: *default-isaac-lab-template-deploy
