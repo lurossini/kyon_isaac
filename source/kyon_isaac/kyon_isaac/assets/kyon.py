@@ -5,7 +5,7 @@ The following configurations are available:
 """
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.actuators import ImplicitActuatorCfg, DCMotorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 import os 
@@ -30,7 +30,7 @@ KYON_LOWER_BODY_CFG = ArticulationCfg(
             angular_damping=0.0,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=True,
+            enabled_self_collisions=False,
             solver_position_iteration_count=4,
             solver_velocity_iteration_count=0,
             sleep_threshold=0.005,
@@ -46,41 +46,50 @@ KYON_LOWER_BODY_CFG = ArticulationCfg(
         pos=(0.0, 0.0, 0.806), #height from floor when in homing
         #default centauro homing
         joint_pos={
-            "hip_pitch_1": 0.7,
-            "hip_pitch_2": -0.7,
-            "hip_pitch_3": 0.7,
-            "hip_pitch_4": -0.7,
+            "hip_pitch_1": -0.7,
+            "hip_pitch_2": 0.7,
+            "hip_pitch_3": -0.7,
+            "hip_pitch_4": 0.7,
             "hip_roll_1": 0,
             "hip_roll_2": 0,
             "hip_roll_3": 0,
             "hip_roll_4": 0,
-            "knee_pitch_1": -1.4,
-            "knee_pitch_2": 1.4,
-            "knee_pitch_3": -1.4,
-            "knee_pitch_4": 1.4,
+            "knee_pitch_1": 1.4,
+            "knee_pitch_2": -1.4,
+            "knee_pitch_3": 1.4,
+            "knee_pitch_4": -1.4,
         }
     ),
     actuators={
-        "hip_roll": ImplicitActuatorCfg(
+        "hip_roll": DCMotorCfg(
             joint_names_expr=["hip_roll_[1-2-3-4]"],
-            effort_limit_sim=185,
-            velocity_limit_sim=7.6,
+            saturation_effort=185,
+            effort_limit=185,
+            velocity_limit=7.6,
             stiffness=500, #8000.0,
             damping=10,
+            armature=0.234,
+            friction=4.68e-1
         ),
-        "hip_pitch": ImplicitActuatorCfg(
+        "hip_pitch": DCMotorCfg(
             joint_names_expr=["hip_pitch_[1-2-3-4]"],
-            effort_limit_sim=185,
-            velocity_limit_sim=7.6,
+            saturation_effort=185,
+            effort_limit=185,
+            velocity_limit=7.6,
             stiffness=500.0,
             damping=10,
+            armature=0.234,
+            friction=4.68e-1
         ),
-        "knee_pitch": ImplicitActuatorCfg(
+        "knee_pitch": DCMotorCfg(
             joint_names_expr=["knee_pitch_[1-2-3-4]"],
-            effort_limit_sim=185,
-            velocity_limit_sim=7.6,
+            saturation_effort=185,
+            effort_limit=185,
+            velocity_limit=7.6,
             stiffness=500, #4000,
             damping=10,
+            armature=0.234,
+            friction=4.68e-1
         ),
     },
     #TODO what these do?

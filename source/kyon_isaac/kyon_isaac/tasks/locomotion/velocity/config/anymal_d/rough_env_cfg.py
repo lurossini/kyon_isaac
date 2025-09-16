@@ -1,3 +1,8 @@
+# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 from isaaclab.utils import configclass
 
 from kyon_isaac.tasks.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
@@ -6,6 +11,7 @@ from kyon_isaac.tasks.locomotion.velocity.velocity_env_cfg import LocomotionVelo
 # Pre-defined configs
 ##
 from kyon_isaac.assets.kyon import KYON_LOWER_BODY_CFG  # isort: skip
+from kyon_isaac.assets.kyon_id import KYON_CFG
 
 
 @configclass
@@ -36,6 +42,6 @@ class KyonRoughEnvCfg_PLAY(KyonRoughEnvCfg):
 
         # disable randomization for play
         self.observations.policy.enable_corruption = False
-        # remove random pushing
+        # remove random pushing event
         self.events.base_external_force_torque = None
         self.events.push_robot = None
