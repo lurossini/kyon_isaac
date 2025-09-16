@@ -34,6 +34,7 @@ simulation_app = app_launcher.app
 """Rest everything follows."""
 
 import torch
+import math
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
@@ -60,47 +61,38 @@ class KyonSceneCfg(InteractiveSceneCfg):
     )
 
     # articulation
-    cartpole: ArticulationCfg = KYON_LOWER_BODY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = KYON_LOWER_BODY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     """Runs the simulation loop."""
     # Extract scene entities
     # note: we only do this here for readability.
-    robot = scene["cartpole"]
+    robot = scene["robot"]
     # Define simulation stepping
     sim_dt = sim.get_physics_dt()
     count = 0
+    time = 0
     # Simulation loop
+    qinit = robot.data.default_joint_pos.clone()
+    robot.write_joint_position_to_sim(qinit)
     while simulation_app.is_running():
-        # Reset
-        if count % 500 == 0:
-            # reset counter
-            count = 0
-            # reset the scene entities
-            # root state
-            # we offset the root state by the origin since the states are written in simulation world frame
-            # if this is not done, then the robots will be spawned at the (0, 0, 0) of the simulation world
-            root_state = robot.data.default_root_state.clone()
-            root_state[:, :3] += scene.env_origins
-            robot.write_root_pose_to_sim(root_state[:, :7])
-            robot.write_root_velocity_to_sim(root_state[:, 7:])
-            # set joint positions with some noise
-            joint_pos, joint_vel = robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone()
-            joint_pos += torch.rand_like(joint_pos) * 0.1
-            robot.write_joint_state_to_sim(joint_pos, joint_vel)
-            # clear internal buffers
-            scene.reset()
-            print("[INFO]: Resetting robot state...")
-        # Apply random action
-        # -- generate random joint efforts
-        efforts = torch.randn_like(robot.data.joint_pos) * 5.0
-        # -- apply action to the robot
-        robot.set_joint_effort_target(efforts)
+        joint_pos_def, joint_vel = robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone()
+        joint_pos = robot.data.joint_pos.clone()
+        joint_pos_def[:, 4:] += 0.5 * torch.sin(torch.ones_like(joint_pos_def[:, 4:]) * 2*math.pi*0.2*time) * torch.sign(joint_pos_def[:, 4:]) * torch.Tensor([[1, 1, 1, 1, 2, 2, 2, 2], [1, 1, 1, 1, 2, 2, 2, 2]]).to(joint_pos_def.device)
+        joint_vel = robot.data.joint_vel.clone()
+        print(f'joint_pos: {joint_pos.cpu().numpy()[0, 4:]}')
+        print(f'joint_pos_def: {joint_pos_def.cpu().numpy()[0, 4:]}')
+        efforts = 500 * (joint_pos_def - joint_pos)
+        # print(f'efforts: {efforts}')
+
+        # robot.set_joint_effort_target(efforts)
+        robot.set_joint_position_target(joint_pos_def)
         # -- write data to sim
         scene.write_data_to_sim()
         # Perform step
         sim.step()
+        time += sim_dt
         # Increment counter
         count += 1
         # Update buffers
