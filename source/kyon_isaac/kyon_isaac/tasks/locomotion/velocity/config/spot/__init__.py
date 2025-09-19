@@ -23,7 +23,7 @@ gym.register(
 )
 
 gym.register(
-    id="Isaac-Velocity-Flat-KyonSpotLike_PLAY-v0",
+    id="Isaac-Velocity-Flat-KyonSpotLike-PLAY-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

@@ -15,10 +15,13 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+from isaaclab.sensors import ContactSensorCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
+
+import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
 
 ##
 # Pre-defined configs
@@ -78,9 +81,6 @@ class KyonObservationsCfg:
         """Observations for policy group."""
 
         # `` observation terms (order preserved)
-        # base_lin_vel = ObsTerm(
-        #     func=mdp.base_lin_vel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.1, n_max=0.1)
-        # )
         base_ang_vel = ObsTerm(
             func=mdp.base_ang_vel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.1, n_max=0.1)
         )
@@ -102,8 +102,40 @@ class KyonObservationsCfg:
             self.enable_corruption = False
             self.concatenate_terms = True
 
+    @configclass
+    class CriticCfg(PolicyCfg):
+        """Observations for critic group."""
+
+        # `` observation terms (order preserved)
+        base_lin_vel = ObsTerm(
+            func=mdp.base_lin_vel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=0.0, n_max=0.0)
+        )
+
+        #
+        joint_effort = ObsTerm(
+            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=0.0, n_max=0.0)
+        )
+
+        imu_lin_acc = ObsTerm(
+            func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=0.0, n_max=0.0)
+        )
+
+        contact_forces = ObsTerm(
+            func=kyon_mdp.contact_forces, 
+            params={
+                "asset_cfg": SceneEntityCfg("robot"),
+                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
+            }, 
+            noise=Unoise(n_min=0.0, n_max=0.0)
+        )
+
+        def __post_init__(self):
+            self.enable_corruption = False
+            self.concatenate_terms = True
+
     # observation groups
     policy: PolicyCfg = PolicyCfg()
+    
 
 
 @configclass
@@ -326,6 +358,8 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # update sensor update periods
         # we tick all the sensors based on the smallest update period (physics update period)
         self.scene.contact_forces.update_period = self.sim.dt
+
+        
 
         # switch robot to Kyon-d
         self.scene.robot = KYON_LOWER_BODY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
