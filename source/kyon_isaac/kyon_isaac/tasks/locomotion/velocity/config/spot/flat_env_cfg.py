@@ -15,7 +15,7 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-from isaaclab.sensors import ContactSensorCfg
+from isaaclab.sensors import ContactSensorCfg, ImuCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
@@ -117,13 +117,12 @@ class KyonObservationsCfg:
         )
 
         imu_lin_acc = ObsTerm(
-            func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=0.0, n_max=0.0)
+            func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("imu_sensor")}, noise=Unoise(n_min=0.0, n_max=0.0)
         )
 
         contact_forces = ObsTerm(
             func=kyon_mdp.contact_forces, 
             params={
-                "asset_cfg": SceneEntityCfg("robot"),
                 "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
             }, 
             noise=Unoise(n_min=0.0, n_max=0.0)
@@ -135,6 +134,7 @@ class KyonObservationsCfg:
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
+    critic: CriticCfg = CriticCfg()
     
 
 
@@ -341,6 +341,8 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
     # Viewer
     viewer = ViewerCfg(eye=(10.5, 10.5, 0.3), origin_type="world", env_index=0, asset_name="robot")
 
+    # Imu
+    
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
@@ -363,6 +365,10 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # switch robot to Kyon-d
         self.scene.robot = KYON_LOWER_BODY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+        # imu
+        self.scene.imu_sensor = ImuCfg(prim_path="{ENV_REGEX_NS}/Robot/imu_link")
+
 
         # terrain
         self.scene.terrain = TerrainImporterCfg(
