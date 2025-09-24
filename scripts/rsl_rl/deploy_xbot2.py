@@ -11,7 +11,6 @@ import argparse
 import sys
 
 from isaaclab.app import AppLauncher
-from kyon_isaac.env.manager_based_xbot2_env import ManagerBasedXBot2Env
 
 # local imports
 import cli_args  # isort: skip
@@ -79,6 +78,7 @@ from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 
 import kyon_isaac.tasks  # noqa: F401
+from kyon_isaac.env.manager_based_xbot2_env import ManagerBasedXBot2Env
 
 
 # PLACEHOLDER: Extension template (do not remove this comment)
@@ -121,7 +121,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # create isaac environment
     env = ManagerBasedXBot2Env(cfg=env_cfg)
     
-    
+    print('all good till here')
+    exit()
 
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
