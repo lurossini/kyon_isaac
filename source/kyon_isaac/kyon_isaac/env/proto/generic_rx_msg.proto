@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+import "jointstate.proto";
+
+message GenericRxMsg {
+    int32 seq = 1;
+    JointState js = 2;
+}

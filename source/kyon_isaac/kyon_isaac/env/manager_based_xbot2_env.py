@@ -9,9 +9,10 @@ import torch
 from tensordict import TensorDict
 from typing import Sequence
 import isaaclab.utils.string as string_utils
+from xbot2_zmq_robot_interface import ZmqRobot
 
 class XBot2RobotData:
-    def __init__(self):
+    def __init__(self, num_joint: int):
         self.root_lin_vel_b = torch.zeros((1, 3))
         self.root_ang_vel_b = torch.zeros((1, 3))
         self.projected_gravity_b = torch.zeros((1, 3))
@@ -26,15 +27,17 @@ class XBot2Robot:
     
     def __init__(self, cfg: ArticulationCfg):
         self.cfg = cfg
-        self.data: XBot2RobotData = XBot2RobotData()
-        self.joint_names: list[str] = [
-            'hip_roll_1', 'hip_pitch_1', 'knee_pitch_1',
-            'hip_roll_2', 'hip_pitch_2', 'knee_pitch_2',
-            'hip_roll_3', 'hip_pitch_3', 'knee_pitch_3',
-            'hip_roll_4', 'hip_pitch_4', 'knee_pitch_4'
-            ]
+        self.data: XBot2RobotData = XBot2RobotData(len(self.cfg.init_state.joint_pos.keys()))
+        
+        self.xbot_robot = ZmqRobot()
+        self.joint_names: list[str] = list(self.cfg.init_state.joint_pos.keys())
+
+        for i, jname in enumerate(self.joint_names):
+            self.data.default_joint_pos[i] = self.cfg.init_state.joint_pos[jname]
+            self.data.default_joint_vel[i] = self.cfg.init_state.joint_vel[jname]
+
         self.num_joints: int = len(self.joint_names)
-    
+
     def find_joints(self, name_keys: str | Sequence[str], joint_subset: list[str] | None = None, preserve_order: bool = False
     ) -> tuple[list[int], list[str]]:
         if joint_subset is None:
@@ -43,6 +46,11 @@ class XBot2Robot:
         return string_utils.resolve_matching_names(name_keys, joint_subset, preserve_order)
     
     def update(self):
+        self.data.joint_pos = self.xbot_robot.getJointPosition()
+        self.data.joint_vel = self.xbot_robot.getJointVelocities()
+        self.data.applied_torque = self.xbot_robot.getJointEffort()
+        self.data.joint_pos_target = self.xbot_robot.getPositionReference()
+        
         pass
     
     def set_joint_position_target(self, target, joint_ids):
