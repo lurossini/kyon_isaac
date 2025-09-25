@@ -4,21 +4,26 @@ import os
 import sys 
 import time
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 # generate python files from proto
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(f'{script_dir}/proto')
 os.makedirs(f'{script_dir}/proto', exist_ok=True)
 os.system(f'protoc *.proto --python_out={script_dir}/proto')
-sys.path.append(f'{script_dir}/proto')
+sys.path.insert(0, f'{script_dir}/proto')
 
-from proto import generic_rx_msg_pb2, jointstate_pb2, jointcmd_pb2
+from .proto import generic_rx_msg_pb2, jointstate_pb2, jointcmd_pb2
 
 class ZmqRobot:
     def __init__(self):
+
+        print('DIONE')
+
+        REMOTE_IP = 'localhost'
         context = zmq.Context()
         self.socket = context.socket(zmq.REQ)
-        self.socket.connect("tcp://10.240.23.65:5557")
+        self.socket.connect(f"tcp://{REMOTE_IP}:5557")
 
         # send joint_names request
         request = {"type": "joint_names"}
@@ -26,18 +31,19 @@ class ZmqRobot:
         response_str = self.socket.recv_string()
         response = yaml.safe_load(response_str)
         self.joint_names = response["data"][1:]
-        print(self.joint_names)
 
         self.js_socket = context.socket(zmq.SUB)
-        self.js_socket.connect("tcp://10.240.23.65:5556")
+        self.js_socket.connect(f"tcp://{REMOTE_IP}:5556")
         self.js_socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all topics
 
         self.cmd_socket = context.socket(zmq.PUB)
-        self.cmd_socket.connect("tcp://10.240.23.65:5558")
+        self.cmd_socket.connect(f"tcp://{REMOTE_IP}:5558")
 
         self.joint_cmd = jointcmd_pb2.JointCommand()
         self.js_msg = jointstate_pb2.JointState()
         self.seq_msg = int()
+
+        print('DIONE2')
 
     def sense(self):
         try:
@@ -45,34 +51,34 @@ class ZmqRobot:
             rx_msg = generic_rx_msg_pb2.GenericRxMsg()
             rx_msg.ParseFromString(msg)
 
-            assert rx_msg.seq >= 0
-            assert rx_msg.js is not None
-
             self.seq_msg = rx_msg.seq
 
-            if rx_msg.has_js:
+            if rx_msg.HasField('js'):
                 self.js_msg = rx_msg.js
 
-            print(f"Received JointState message with seq: {rx_msg.seq}")
-            print(f"linkPos: {js_msg.linkPos}")
-            assert len(js_msg.linkPos) == len(js_msg.motVel)
+            if rx_msg.HasField('imu'):
+                self.imu_msg = rx_msg.imu
 
         except zmq.Again:
             print("No message received yet.")
 
+    def set_filter_frequency_hz(self, cutoff_freq):
+        # send joint_names request
+        request = {"type": "set_filter_frequency_hz", "enabled": True, "cutoff_hz": cutoff_freq}
+        self.socket.send_string(yaml.dump(request))
+        response_str = self.socket.recv_string()
+        print(response_str)
+
     def move(self):
         # Serialize and send the message
         msg_str = self.joint_cmd.SerializeToString()
-        
         self.cmd_socket.send(msg_str)
-        time.sleep(1)
-
-        print("Sent JointCommand message.")
 
     def enableJoints(self, jnames: list):
         self.joint_cmd.name.extend(jnames)
 
     def setPositionReference(self, pos_ref: np.ndarray):
+        self.joint_cmd.posRef.clear()
         self.joint_cmd.posRef.extend(pos_ref)
 
     def setVelocityReference(self, vel_ref: np.ndarray):
@@ -91,35 +97,42 @@ class ZmqRobot:
         self.joint_cmd.ctrl.extend(ctrl_mode)
 
     def getJointPosition(self):
-        return self.js_msg.linkPos()
+        return self.js_msg.linkPos[6:]
 
     def getMotorPosition(self):
-        return self.js_msg.motPos()
+        return self.js_msg.motPos[6:]
 
     def getPositionReference(self):
-        return self.js_msg.posRef()
+        return self.js_msg.posRef[6:]
 
     def getVelocityReference(self):
-        return self.js_msg.velRef()
+        return self.js_msg.velRef[6:]
 
     def getEffortReference(self):
-        return self.js_msg.torRef()
+        return self.js_msg.torRef[6:]
 
     def getJointVelocities(self):
-        return self.js_msg.linkVel()
+        return self.js_msg.linkVel[6:]
 
     def getMotorVelocities(self):
-        return self.js_msg.motVel()
+        return self.js_msg.motVel[6:]
 
     def getJointEffort(self):
-        return self.js_msg.tor
+        return self.js_msg.tor[6:]
 
     def getStiffness(self):
-        return self.js_msg.k
+        return self.js_msg.k[6:]
 
     def getDamping(self):
-        return self.js_msg.d
-
+        return self.js_msg.d[6:]
+    
+    def getImuAngularVelocity(self):
+        return [self.imu_msg.angular_velocity_x, self.imu_msg.angular_velocity_y, self.imu_msg.angular_velocity_z]
+    
+    def getImuOrientation(self):
+        w_T_imu = R.from_quat([self.imu_msg.orientation_x, self.imu_msg.orientation_y, self.imu_msg.orientation_z, self.imu_msg.orientation_w])
+        return R.as_matrix(w_T_imu)
+    
 def main():
     print("Start")
 

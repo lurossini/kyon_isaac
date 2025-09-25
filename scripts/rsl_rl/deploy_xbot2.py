@@ -182,7 +182,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             # agent stepping
             actions = policy(obs)
             # env stepping
-            env.step(actions)
+            obs = env.step(actions)
             # obs, _, _, _ = env.step(actions)
         if args_cli.video:
             timestep += 1
