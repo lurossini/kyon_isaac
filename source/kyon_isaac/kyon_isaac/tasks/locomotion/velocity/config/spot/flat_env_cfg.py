@@ -67,7 +67,7 @@ class KyonCommandsCfg:
         heading_command=False,
         debug_vis=False,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-2.0, 3.0), lin_vel_y=(-1.5, 1.5), ang_vel_z=(-2.0, 2.0)
+            lin_vel_x=(-1.5, 1.5), lin_vel_y=(-0.8, 0.8), ang_vel_z=(-1.2, 1.2)
         ),
     )
 
@@ -269,7 +269,7 @@ class KyonRewardsCfg:
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")},
     )
     base_motion = RewardTermCfg(
-        func=spot_mdp.base_motion_penalty, weight=-2.0, params={"asset_cfg": SceneEntityCfg("robot")}
+        func=spot_mdp.base_motion_penalty, weight=-1.0, params={"asset_cfg": SceneEntityCfg("robot")}
     )
     base_orientation = RewardTermCfg(
         func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")}
@@ -297,10 +297,20 @@ class KyonRewardsCfg:
             "velocity_threshold": 0.5,
         },
     )
-    joint_torques = RewardTermCfg(
+    joint_torques_hip_roll = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
         weight=-5.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names="hip_roll_.*")},
+    )
+    joint_torques_hip_pitch = RewardTermCfg(
+        func=spot_mdp.joint_torques_penalty,
+        weight=-1.0e-4,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names="hip_pitch_.*")},
+    )
+    joint_torques_knee_pitch = RewardTermCfg(
+        func=spot_mdp.joint_torques_penalty,
+        weight=-1.0e-4,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names="knee_pitch_.*")},
     )
     joint_vel = RewardTermCfg(
         func=spot_mdp.joint_velocity_penalty,
