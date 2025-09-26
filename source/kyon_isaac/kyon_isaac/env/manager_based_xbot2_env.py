@@ -11,6 +11,7 @@ from typing import Sequence
 import isaaclab.utils.string as string_utils
 from .xbot2_zmq_robot_interface import ZmqRobot
 import numpy as np
+import time
 
 class XBot2RobotData:
     def __init__(self, num_joint: int):
@@ -80,7 +81,8 @@ class XBot2Robot:
         self.data.joint_vel[0, :] = torch.tensor(self.xbot_robot.getMotorVelocities())[self.idx_xbot_to_isaac]
         self.data.applied_torque[0, :] = torch.tensor(self.xbot_robot.getJointEffort())[self.idx_xbot_to_isaac]
         self.data.joint_pos_target[0, :] = torch.tensor(self.xbot_robot.getPositionReference())[self.idx_xbot_to_isaac]
-        self.data.projected_gravity_b[0, :] = torch.tensor(self.xbot_robot.getImuOrientation()[2, :])
+        self.data.projected_gravity_b[0, :] = -torch.tensor(self.xbot_robot.getImuOrientation()[2, :]) * torch.tensor([1, -1, -1])
+        self.data.root_ang_vel_b[0, :] = torch.tensor(self.xbot_robot.getImuAngularVelocity()) * torch.tensor([1, -1, -1])
         self.time += 0.02
     
     def set_joint_position_target(self, target, joint_ids):
@@ -179,6 +181,7 @@ class ManagerBasedXBot2Env:
         self.observation_manager = ObservationManager(cfg=cfg.observations, env=self)
         self.unwrapped = self  # Placeholder for actual unwrapping logic
         self.num_actions = self.action_manager.total_action_dim
+        self.t_last = time.time()
         
     def get_observations(self) -> TensorDict:
         """Returns the current observations of the environment."""
@@ -189,6 +192,9 @@ class ManagerBasedXBot2Env:
         raise NotImplementedError("Reset not implemented yet (?!?!)")
     
     def step(self, action: torch.Tensor):
+
+        time.sleep(max(0, self.step_dt - (time.time() - self.t_last)))
+        self.t_last = time.time()
 
         self.command_manager.compute(self.step_dt)
         
@@ -202,5 +208,17 @@ class ManagerBasedXBot2Env:
         # update scene
         self.scene.update()
 
-        return self.get_observations()
+        obs =  self.get_observations()
+
+        # obsvec = obs['critic'].flatten()
+        # print('---')
+        # print('ang vel', obsvec[0:3])
+        # print('proj grav', obsvec[3:6])
+        # print('vel cmd', obsvec[6:9])
+        # print('joint pos', obsvec[9:21])
+        # print('joint vel', obsvec[21:33])
+        # print('action', obsvec[33:45])
+        # print('---')
+
+        return obs
         

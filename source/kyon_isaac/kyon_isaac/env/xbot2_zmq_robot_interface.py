@@ -46,21 +46,24 @@ class ZmqRobot:
         print('DIONE2')
 
     def sense(self):
-        try:
-            msg = self.js_socket.recv()
-            rx_msg = generic_rx_msg_pb2.GenericRxMsg()
-            rx_msg.ParseFromString(msg)
+        while True:
+            try:
+                msg = self.js_socket.recv(flags=zmq.NOBLOCK)
+            except zmq.Again:
+                break
+        
+        rx_msg = generic_rx_msg_pb2.GenericRxMsg()
+        rx_msg.ParseFromString(msg)
 
-            self.seq_msg = rx_msg.seq
+        self.seq_msg = rx_msg.seq
 
-            if rx_msg.HasField('js'):
-                self.js_msg = rx_msg.js
+        if rx_msg.HasField('js'):
+            self.js_msg = rx_msg.js
 
-            if rx_msg.HasField('imu'):
-                self.imu_msg = rx_msg.imu
+        if rx_msg.HasField('imu'):
+            self.imu_msg = rx_msg.imu
 
-        except zmq.Again:
-            print("No message received yet.")
+        
 
     def set_filter_frequency_hz(self, cutoff_freq):
         # send joint_names request
