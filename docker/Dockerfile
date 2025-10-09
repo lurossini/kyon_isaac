@@ -7,9 +7,11 @@ RUN apt update && apt install -y \
 
 WORKDIR /workspace
 
+SHELL ["bash", "-ic"]
+
 RUN PB_REL="https://github.com/protocolbuffers/protobuf/releases" && \
     curl -LO $PB_REL/download/v30.2/protoc-30.2-linux-x86_64.zip && \
     unzip protoc-30.2-linux-x86_64.zip -d /usr && \
-    rm protoc-30.2-linux-x86_64.zip && \
-    python -m pip install zmq
+    rm protoc-30.2-linux-x86_64.zip
+    #python -m pip install zmq
 

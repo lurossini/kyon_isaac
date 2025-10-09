@@ -8,17 +8,15 @@ from scipy.spatial.transform import Rotation as R
 
 # generate python files from proto
 script_dir = os.path.dirname(os.path.abspath(__file__))
-os.chdir(f'{script_dir}/proto')
 os.makedirs(f'{script_dir}/proto', exist_ok=True)
-os.system(f'protoc *.proto --python_out={script_dir}/proto')
+os.chdir(f'{script_dir}/proto')
+os.system(f'protoc *.proto --python_out=.')
 sys.path.insert(0, f'{script_dir}/proto')
 
 from .proto import generic_rx_msg_pb2, jointstate_pb2, jointcmd_pb2
 
 class ZmqRobot:
     def __init__(self):
-
-        print('DIONE')
 
         REMOTE_IP = 'localhost'
         context = zmq.Context()
@@ -43,38 +41,39 @@ class ZmqRobot:
         self.js_msg = jointstate_pb2.JointState()
         self.seq_msg = int()
 
-        print('DIONE2')
-
     def sense(self):
-        while True:
-            try:
-                msg = self.js_socket.recv(flags=zmq.NOBLOCK)
-            except zmq.Again:
-                break
-        
-        rx_msg = generic_rx_msg_pb2.GenericRxMsg()
-        rx_msg.ParseFromString(msg)
+        msg = None
+        while msg is None:
+            while True:
+                try:
+                    msg = self.js_socket.recv(flags=zmq.NOBLOCK)
+                    rx_msg = generic_rx_msg_pb2.GenericRxMsg()
+                    rx_msg.ParseFromString(msg)
 
-        self.seq_msg = rx_msg.seq
+                    self.seq_msg = rx_msg.seq
 
-        if rx_msg.HasField('js'):
-            self.js_msg = rx_msg.js
+                    if rx_msg.HasField('js'):
+                        self.js_msg = rx_msg.js
 
-        if rx_msg.HasField('imu'):
-            self.imu_msg = rx_msg.imu
+                    if rx_msg.HasField('imu'):
+                        self.imu_msg = rx_msg.imu
 
-        
+                except zmq.Again:
+                    break        
 
-    def set_filter_frequency_hz(self, cutoff_freq):
+    def set_filter_frequency_hz(self, cutoff_freq, enabled=True):
         # send joint_names request
-        request = {"type": "set_filter_frequency_hz", "enabled": True, "cutoff_hz": cutoff_freq}
+        request = {"type": "set_filter_frequency_hz", "enabled": enabled, "cutoff_hz": cutoff_freq}
         self.socket.send_string(yaml.dump(request))
         response_str = self.socket.recv_string()
         print(response_str)
 
     def move(self):
         # Serialize and send the message
-        msg_str = self.joint_cmd.SerializeToString()
+        cmd_msg = generic_rx_msg_pb2.GenericRxMsg() 
+        cmd_msg.stamp = int(time.time() * 1e9)
+        cmd_msg.cmd.CopyFrom(self.joint_cmd)
+        msg_str = cmd_msg.SerializeToString()
         self.cmd_socket.send(msg_str)
 
     def enableJoints(self, jnames: list):

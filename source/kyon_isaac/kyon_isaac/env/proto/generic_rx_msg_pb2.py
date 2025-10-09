@@ -24,15 +24,16 @@ _sym_db = _symbol_database.Default()
 
 import jointstate_pb2 as jointstate__pb2
 import imu_pb2 as imu__pb2
+import jointcmd_pb2 as jointcmd__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14generic_rx_msg.proto\x1a\x10jointstate.proto\x1a\timu.proto\"G\n\x0cGenericRxMsg\x12\x0b\n\x03seq\x18\x01 \x01(\x05\x12\x17\n\x02js\x18\x02 \x01(\x0b\x32\x0b.JointState\x12\x11\n\x03imu\x18\x03 \x01(\x0b\x32\x04.Imub\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14generic_rx_msg.proto\x1a\x10jointstate.proto\x1a\timu.proto\x1a\x0ejointcmd.proto\"r\n\x0cGenericRxMsg\x12\x0b\n\x03seq\x18\x01 \x01(\x05\x12\r\n\x05stamp\x18\x02 \x01(\x03\x12\x17\n\x02js\x18\x03 \x01(\x0b\x32\x0b.JointState\x12\x11\n\x03imu\x18\x04 \x01(\x0b\x32\x04.Imu\x12\x1a\n\x03\x63md\x18\x05 \x01(\x0b\x32\r.JointCommandb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'generic_rx_msg_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_GENERICRXMSG']._serialized_start=53
-  _globals['_GENERICRXMSG']._serialized_end=124
+  _globals['_GENERICRXMSG']._serialized_start=69
+  _globals['_GENERICRXMSG']._serialized_end=183
 # @@protoc_insertion_point(module_scope)

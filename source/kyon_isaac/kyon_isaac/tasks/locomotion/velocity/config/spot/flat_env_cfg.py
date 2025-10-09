@@ -22,6 +22,8 @@ import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
 
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
+# from kyon_isaac.sensors import ActionHistorySensorCfg
+
 
 ##
 # Pre-defined configs
@@ -52,7 +54,7 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
 class KyonActionsCfg:
     """Action specifications for the MDP."""
 
-    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.2, use_default_offset=True)
+    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.4, use_default_offset=True)
 
 
 @configclass
@@ -67,13 +69,12 @@ class KyonCommandsCfg:
         heading_command=False,
         debug_vis=False,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-1.5, 1.5), lin_vel_y=(-0.8, 0.8), ang_vel_z=(-1.2, 1.2)
+            lin_vel_x=(-1.5, 1.5), lin_vel_y=(-1., 1.), ang_vel_z=(-1.5, 1.5)
         ),
     )
 
-
 @configclass
-class KyonObservationsCfg:
+class KyonObservationsMjxCfg:
     """Observation specifications for the MDP."""
 
     @configclass
@@ -93,13 +94,19 @@ class KyonObservationsCfg:
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05)
         )
+        joint_pos_error_history = ObsTerm(
+            func=kyon_mdp.joint_pos_error, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=3
+        )
         joint_vel = ObsTerm(
             func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
         )
+        # joint_effort = ObsTerm(
+        #     func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
+        # )
         actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
-            self.enable_corruption = False
+            self.enable_corruption = True
             self.concatenate_terms = True
 
     @configclass
@@ -108,26 +115,23 @@ class KyonObservationsCfg:
 
         # `` observation terms (order preserved)
         base_lin_vel = ObsTerm(
-            func=mdp.base_lin_vel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=0.0, n_max=0.0)
-        )
-
-        #
-        joint_effort = ObsTerm(
-            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=0.0, n_max=0.0)
+            func=mdp.base_lin_vel, params={"asset_cfg": SceneEntityCfg("robot")}
         )
 
         imu_lin_acc = ObsTerm(
-            func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("imu_sensor")}, noise=Unoise(n_min=0.0, n_max=0.0)
+            func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("imu_sensor")}
         )
 
         contact_forces = ObsTerm(
             func=kyon_mdp.contact_forces, 
             params={
-                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
+                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")
             }, 
-            noise=Unoise(n_min=0.0, n_max=0.0)
         )
 
+        joint_effort = ObsTerm(
+            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}
+        )
         def __post_init__(self):
             self.enable_corruption = False
             self.concatenate_terms = True
@@ -135,6 +139,43 @@ class KyonObservationsCfg:
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
+
+@configclass
+class KyonObservationsCfg:
+    """Observation specifications for the MDP."""
+
+    @configclass
+    class PolicyCfg(ObsGroup):
+        """Observations for policy group."""
+
+        # `` observation terms (order preserved)
+        base_lin_vel = ObsTerm(
+            func=mdp.base_lin_vel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.1, n_max=0.1)
+        )
+        base_ang_vel = ObsTerm(
+            func=mdp.base_ang_vel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.1, n_max=0.1)
+        )
+        projected_gravity = ObsTerm(
+            func=mdp.projected_gravity,
+            params={"asset_cfg": SceneEntityCfg("robot")},
+            noise=Unoise(n_min=-0.05, n_max=0.05),
+        )
+        velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+        joint_pos = ObsTerm(
+            func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05)
+        )
+        joint_vel = ObsTerm(
+            func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
+        )
+                #
+        actions = ObsTerm(func=mdp.last_action)
+
+        def __post_init__(self):
+            self.enable_corruption = False
+            self.concatenate_terms = True
+
+    # observation groups
+    policy: PolicyCfg = PolicyCfg()
     
 
 
@@ -153,6 +194,15 @@ class KyonEventCfg:
             "restitution_range": (0.0, 0.0),
             "num_buckets": 64,
         },
+    )
+
+    actuator_gains = EventTerm(
+        func=mdp.randomize_actuator_gains,
+        mode="startup",
+        params={
+            "stiffness_distribution_params": ()
+            "damping_distribution_params" ()
+        }
     )
 
     add_base_mass = EventTerm(
@@ -214,6 +264,124 @@ class KyonEventCfg:
         },
     )
 
+@configclass
+class KyonRewardsMjxCfg:
+    air_time = RewardTermCfg(
+        func=kyon_mdp.reward_feet_air_time,
+              weight=0.1,
+              params={
+                    "asset_cfg": SceneEntityCfg("robot"),
+                    "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
+              },
+    )
+    # air_time = RewardTermCfg(
+    #     func=spot_mdp.air_time_reward,
+    #     weight=5.0,
+    #     params={
+    #         "mode_time": 0.3,
+    #         "velocity_threshold": 0.5,
+    #         "asset_cfg": SceneEntityCfg("robot"),
+    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
+    #     },
+    # )
+    base_angular_velocity = RewardTermCfg(
+        func=kyon_mdp.reward_tracking_ang_vel,
+        weight=0.8,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            },
+    )
+    base_linear_velocity = RewardTermCfg(
+        func=kyon_mdp.reward_tracking_lin_vel,
+        weight=1.5,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+        }
+    )
+    foot_clearance = RewardTermCfg(
+        func=kyon_mdp.cost_feet_clearance,
+        weight=-2.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"), 
+            "target_height": 0.1,
+        }
+    )
+    # foot_clearance = RewardTermCfg(
+    #     func=spot_mdp.foot_clearance_reward,
+    #     weight=0.5,
+    #     params={
+    #         "std": 0.05,
+    #         "tanh_mult": 2.0,
+    #         "target_height": 0.1,
+    #         "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
+    #     },
+    # )
+    lin_vel_z = RewardTermCfg(
+        func=kyon_mdp.cost_lin_vel_z,
+        weight=-2.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+        }
+    )
+    ang_vel_xy = RewardTermCfg(
+        func=kyon_mdp.cost_ang_vel_xy,
+        weight=-0.05,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+        }
+    )
+    orientation = RewardTermCfg(
+        func=kyon_mdp.cost_orientation,
+        weight=-5.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+        }
+    )
+    posture = RewardTermCfg(
+        func=kyon_mdp.reward_posture,
+        weight=1.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+        }
+    )
+    torques = RewardTermCfg(
+        func=kyon_mdp.cost_torques,
+        weight=-0.0002,
+        params={"asset_cfg": SceneEntityCfg("robot")},
+    )
+    # action_rate = RewardTermCfg(
+    #     func=kyon_mdp.cost_action_rate,
+    #     weight=-0.01,
+    #     params={
+    #         "sensor_cfg": SceneEntityCfg("action_history")
+    #     }
+    # )
+    energy = RewardTermCfg(
+        func=kyon_mdp.cost_energy,
+        weight=-0.001,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+        }
+    )
+    feet_slip = RewardTermCfg(
+        func=kyon_mdp.cost_feet_slip,
+        weight=-0.1,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
+            "threshold": 1.0,
+        }
+    )
+    # foot_slip = RewardTermCfg(
+    #     func=spot_mdp.foot_slip_penalty,
+    #     weight=-0.5,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
+    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
+    #         "threshold": 1.0,
+    #     },
+    # )
+
 
 @configclass
 class KyonRewardsCfg:
@@ -269,7 +437,7 @@ class KyonRewardsCfg:
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")},
     )
     base_motion = RewardTermCfg(
-        func=spot_mdp.base_motion_penalty, weight=-1.0, params={"asset_cfg": SceneEntityCfg("robot")}
+        func=spot_mdp.base_motion_penalty, weight=-2.0, params={"asset_cfg": SceneEntityCfg("robot")}
     )
     base_orientation = RewardTermCfg(
         func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")}
@@ -288,15 +456,15 @@ class KyonRewardsCfg:
         weight=-1.0e-4,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
     )
-    joint_pos = RewardTermCfg(
-        func=spot_mdp.joint_position_penalty,
-        weight=-0.7,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-            "stand_still_scale": 5.0,
-            "velocity_threshold": 0.5,
-        },
-    )
+    # joint_pos = RewardTermCfg(
+    #     func=spot_mdp.joint_position_penalty,
+    #     weight=-0.7,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names="hip_roll_.*"),
+    #         "stand_still_scale": 5.0,
+    #         "velocity_threshold": 0.5,
+    #     },
+    # )
     joint_torques_hip_roll = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
         weight=-5.0e-4,
@@ -304,19 +472,24 @@ class KyonRewardsCfg:
     )
     joint_torques_hip_pitch = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
-        weight=-1.0e-4,
+        weight=-5.0e-4,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names="hip_pitch_.*")},
     )
     joint_torques_knee_pitch = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
-        weight=-1.0e-4,
+        weight=-5.0e-4,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names="knee_pitch_.*")},
     )
     joint_vel = RewardTermCfg(
         func=spot_mdp.joint_velocity_penalty,
-        weight=-1.0e-2,
+        weight=-5.0e-2,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
     )
+    # contact_forces = RewardTermCfg(
+    #     func=kyon_mdp.min_contact_forces,
+    #     weight=-5.0e-4,
+    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")}
+    # )
 
 
 @configclass
@@ -339,7 +512,7 @@ class KyonTerminationsCfg:
 class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 
     # Basic settings
-    observations: KyonObservationsCfg = KyonObservationsCfg()
+    observations: KyonObservationsCfg = KyonObservationsMjxCfg()
     actions: KyonActionsCfg = KyonActionsCfg()
     commands: KyonCommandsCfg = KyonCommandsCfg()
 
@@ -372,12 +545,14 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.contact_forces.update_period = self.sim.dt
 
         
-
         # switch robot to Kyon-d
         self.scene.robot = KYON_LOWER_BODY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # imu
         self.scene.imu_sensor = ImuCfg(prim_path="{ENV_REGEX_NS}/Robot/imu_link")
+
+        # self.scene.action_history = ActionHistorySensorCfg(prim_path="{ENV_REGEX_NS}/Robot", history_length=3)
+
 
 
         # terrain

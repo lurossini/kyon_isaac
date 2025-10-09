@@ -20,12 +20,16 @@ services:
       dockerfile: docker/Dockerfile
     container_name: kyon-isaac-base
     volumes:
+      - /dev/input:/dev/input
       - $XAUTHORITY:/root/.Xauthority:rw
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - type: bind
         source: ../
         target: /workspace/kyon_isaac
+          #devices:
+          #- "/dev/input/js0:/dev/input/js0"
     network_mode: host
+    restart: always
     environment: *default-isaac-lab-template-environment
     deploy: *default-isaac-lab-template-deploy
     # This is the entrypoint for the container

@@ -54,3 +54,12 @@ def feet_air_time_positive_biped(
     # no reward for zero command
     reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
     return reward
+
+def min_contact_forces(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize contact forces as the amount of violations of the net contact force."""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids]
+    net_contact_forces = torch.sum(net_contact_forces, dim=-1) # sum force components
+    net_contact_forces = torch.sum(net_contact_forces, dim=1) # sum history
+    return torch.sum(net_contact_forces, dim=1)

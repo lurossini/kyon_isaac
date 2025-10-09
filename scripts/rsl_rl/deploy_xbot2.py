@@ -34,8 +34,11 @@ parser.add_argument(
     help="Use the pre-trained checkpoint from Nucleus.",
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
+parser.add_argument("--interactive", action="store_true", default=False, help="Enable joystick to send commands")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
+
+args = parser.parse_args()
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
@@ -48,6 +51,7 @@ if args_cli.video:
 sys.argv = [sys.argv[0]] + hydra_args
 
 # launch omniverse app
+args_cli.headless = True
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
@@ -80,6 +84,30 @@ from isaaclab_tasks.utils.hydra import hydra_task_config
 import kyon_isaac.tasks  # noqa: F401
 from kyon_isaac.env.manager_based_xbot2_env import ManagerBasedXBot2Env
 
+# joy
+if args.interactive:
+    import pygame
+    os.environ["SDL_JOYSTICK_DEVICE"] = "/dev/input/js0"
+
+    pygame.init()
+    pygame.joystick.init()
+
+    # Check for joysticks
+    if pygame.joystick.get_count() == 0:
+        print("No joystick connected.")
+        exit()
+
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+
+    print(f"Joystick detected: {joystick.get_name()}")
+
+    DEADZONE = 0.1
+    def apply_deadzone(value, deadzone=DEADZONE):
+        if abs(value) < deadzone:
+            return 0.0
+        return value
+
 
 # PLACEHOLDER: Extension template (do not remove this comment)
 
@@ -95,8 +123,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     agent_cfg: RslRlBaseRunnerCfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
     env_cfg.scene.num_envs = 1
     
-    
-
     # set the environment seed
     # note: certain randomizations occur in the environment initialization so we set the seed here
     env_cfg.seed = agent_cfg.seed
@@ -121,8 +147,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # create isaac environment
     env = ManagerBasedXBot2Env(cfg=env_cfg)
     
-    
-
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
@@ -173,7 +197,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # reset environment
     obs = env.get_observations()
-    timestep = 0
+
     # simulate environment
     while simulation_app.is_running():
         start_time = time.time()
@@ -183,12 +207,13 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             actions = policy(obs)
             # env stepping
             obs = env.step(actions)
+            if args.interactive:
+                pygame.event.pump()
+                x_vel = -1.5 * apply_deadzone(joystick.get_axis(1))
+                y_vel = -2 * apply_deadzone(joystick.get_axis(0))
+                omega = -1.5 * apply_deadzone(joystick.get_axis(3))
+                obs['policy'][0, 6:9] = torch.Tensor([x_vel, y_vel, omega])
             # obs, _, _, _ = env.step(actions)
-        if args_cli.video:
-            timestep += 1
-            # Exit the play loop after recording one video
-            if timestep == args_cli.video_length:
-                break
 
         # time delay for real-time evaluation
         sleep_time = dt - (time.time() - start_time)
@@ -204,3 +229,4 @@ if __name__ == "__main__":
     main()
     # close sim app
     simulation_app.close()
+    pygame.quit()

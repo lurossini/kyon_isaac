@@ -30,7 +30,9 @@ class XBot2Robot:
     def __init__(self, cfg: ArticulationCfg, xbot_robot: ZmqRobot):
         self.cfg = cfg
         self.xbot_robot = xbot_robot
-        self.joint_names: list[str] = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4', 'hip_pitch_1', 'hip_pitch_2', 'hip_pitch_3', 'hip_pitch_4', 'knee_pitch_1', 'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4']
+        self.joint_names: list[str] = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4', 
+                                       'hip_pitch_1', 'hip_pitch_2', 'hip_pitch_3', 'hip_pitch_4', 
+                                       'knee_pitch_1', 'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4']
 
         self.idx_xbot_to_isaac = []
         for jn in self.joint_names:
@@ -53,7 +55,7 @@ class XBot2Robot:
         self.damping = np.array(self.damping)
         
         self.xbot_robot.enableJoints(self.joint_names)  
-        self.xbot_robot.set_filter_frequency_hz(40.0)
+        self.xbot_robot.set_filter_frequency_hz(40.0, False)
         self.xbot_robot.setVelocityReference(np.zeros(self.num_joints))
         self.xbot_robot.setEffortReference(np.zeros(self.num_joints))
         self.xbot_robot.setStiffness(self.stiffness)
@@ -67,15 +69,13 @@ class XBot2Robot:
         for i in range(len(self.joint_names)):
             print(f'Joint {i} idx {self.idx_xbot_to_isaac[i]} name {self.joint_names[i]} default pos {self.data.default_joint_pos[0, i]} stiffness {self.stiffness[i]} damping {self.damping[i]}')
 
-
     def find_joints(self, name_keys: str | Sequence[str], joint_subset: list[str] | None = None, preserve_order: bool = False
     ) -> tuple[list[int], list[str]]:
         if joint_subset is None:
             joint_subset = self.joint_names
         # find joints
         return string_utils.resolve_matching_names(name_keys, joint_subset, preserve_order)
-            
-    
+              
     def update(self):
         self.data.joint_pos[0, :] = torch.tensor(self.xbot_robot.getJointPosition())[self.idx_xbot_to_isaac]
         self.data.joint_vel[0, :] = torch.tensor(self.xbot_robot.getMotorVelocities())[self.idx_xbot_to_isaac]
@@ -210,7 +210,7 @@ class ManagerBasedXBot2Env:
 
         obs =  self.get_observations()
 
-        # obsvec = obs['critic'].flatten()
+        # obsvec = obs['policy'].flatten()
         # print('---')
         # print('ang vel', obsvec[0:3])
         # print('proj grav', obsvec[3:6])
