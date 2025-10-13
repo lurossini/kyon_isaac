@@ -200,7 +200,7 @@ class KyonEventCfg:
         func=mdp.randomize_actuator_gains,
         mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("robot"),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "operation": "scale",
             "stiffness_distribution_params": (0.8, 1.2),
             "damping_distribution_params": (0.8, 1.2),
@@ -209,9 +209,9 @@ class KyonEventCfg:
 
     joint_parameters = EventTerm(
         func=mdp.randomize_joint_parameters,
-        model="startup",
+        mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("robot"),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "operation": "scale",
             "friction_distribution_params": (0.8, 1.2),
             "armature_distribution_params": (0.8, 1.2),
