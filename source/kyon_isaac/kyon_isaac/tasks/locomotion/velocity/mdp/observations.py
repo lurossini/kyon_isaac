@@ -41,10 +41,10 @@ def last_last_action(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torc
     return action_matrix
 
 def joint_pos_error(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
-    """The joint positions of the asset w.r.t. the default joint positions.
+    """The joint positions of the asset w.r.t. the target joint positions.
 
     Note: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their positions returned.
     """
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
-    return asset.data.joint_pos[:, asset_cfg.joint_ids] - env.action_manager.action[:, asset_cfg.joint_ids]
+    return asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.joint_pos_target[:, asset_cfg.joint_ids]
