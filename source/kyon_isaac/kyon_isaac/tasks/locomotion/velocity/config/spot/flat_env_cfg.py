@@ -478,20 +478,10 @@ class KyonRewardsCfg:
     #         "velocity_threshold": 0.5,
     #     },
     # )
-    joint_torques_hip_roll = RewardTermCfg(
+    joint_torques = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
         weight=-5.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names="hip_roll_.*")},
-    )
-    joint_torques_hip_pitch = RewardTermCfg(
-        func=spot_mdp.joint_torques_penalty,
-        weight=-5.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names="hip_pitch_.*")},
-    )
-    joint_torques_knee_pitch = RewardTermCfg(
-        func=spot_mdp.joint_torques_penalty,
-        weight=-5.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names="knee_pitch_.*")},
+        params={"asset_cfg": SceneEntityCfg("robot")},
     )
     joint_vel = RewardTermCfg(
         func=spot_mdp.joint_velocity_penalty,
