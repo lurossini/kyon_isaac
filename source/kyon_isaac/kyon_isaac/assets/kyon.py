@@ -63,7 +63,7 @@ KYON_LOWER_BODY_CFG = ArticulationCfg(
     actuators={
         "hip_roll": DelayedPDActuatorCfg(
             joint_names_expr=["hip_roll_[1-2-3-4]"],
-            saturation_effort=185,
+            # saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
             stiffness=500, #8000.0,
@@ -75,7 +75,7 @@ KYON_LOWER_BODY_CFG = ArticulationCfg(
         ),
         "hip_pitch": DelayedPDActuatorCfg(
             joint_names_expr=["hip_pitch_[1-2-3-4]"],
-            saturation_effort=185,
+            # saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
             stiffness=500.0,
@@ -88,7 +88,7 @@ KYON_LOWER_BODY_CFG = ArticulationCfg(
         ),
         "knee_pitch": DelayedPDActuatorCfg(
             joint_names_expr=["knee_pitch_[1-2-3-4]"],
-            saturation_effort=185,
+            # saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
             stiffness=500, #4000,
