@@ -9,6 +9,8 @@
 
 import argparse
 import sys
+import numpy as np
+import time
 
 from isaaclab.app import AppLauncher
 
@@ -35,6 +37,7 @@ parser.add_argument(
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
 parser.add_argument("--interactive", action="store_true", default=False, help="Enable joystick to send commands")
+parser.add_argument("--keyboard", action="store_true", default=False, help="Send command references through keyboard")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 
@@ -84,6 +87,10 @@ from isaaclab_tasks.utils.hydra import hydra_task_config
 import kyon_isaac.tasks  # noqa: F401
 from kyon_isaac.env.manager_based_xbot2_env import ManagerBasedXBot2Env
 
+
+if args.interactive and args.keyboard:
+    raise RuntimeError("both joystick and keyboard enabled, please set one to False")
+
 # joy
 if args.interactive:
     import pygame
@@ -107,6 +114,10 @@ if args.interactive:
         if abs(value) < deadzone:
             return 0.0
         return value
+# keyboard
+if args.keyboard:
+    from keyboard_input import KeyboardIO
+    kio = KeyboardIO()
 
 
 # PLACEHOLDER: Extension template (do not remove this comment)
@@ -198,6 +209,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # reset environment
     obs = env.get_observations()
 
+    mean_time_inference = np.zeros(100)
+    i = 0
+
     # simulate environment
     while simulation_app.is_running():
         start_time = time.time()
@@ -207,13 +221,23 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             actions = policy(obs)
             # env stepping
             obs = env.step(actions)
+            obs['policy'][:, 6:9] /= 2
             if args.interactive:
                 pygame.event.pump()
                 x_vel = -1.5 * apply_deadzone(joystick.get_axis(1))
                 y_vel = -2 * apply_deadzone(joystick.get_axis(0))
                 omega = -1.5 * apply_deadzone(joystick.get_axis(3))
                 obs['policy'][0, 6:9] = torch.Tensor([x_vel, y_vel, omega])
+            if args.keyboard:
+                obs['policy'][0, 6:9] = torch.Tensor(kio.get_key())
             # obs, _, _, _ = env.step(actions)
+
+        end_time = time.time()
+        if i % 100 == 0 and i != 0:
+            i = 0
+            print(f'mean inference time: {np.mean(mean_time_inference)}')
+        mean_time_inference[i] = end_time - start_time
+        i += 1
 
         # time delay for real-time evaluation
         sleep_time = dt - (time.time() - start_time)

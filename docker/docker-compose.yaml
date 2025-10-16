@@ -26,7 +26,8 @@ services:
       - type: bind
         source: ../
         target: /workspace/kyon_isaac
-          #devices:
+    devices:
+      - "/dev/input/event3:/dev/input/event3"
           #- "/dev/input/js0:/dev/input/js0"
     network_mode: host
     restart: always
