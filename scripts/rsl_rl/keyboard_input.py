@@ -34,10 +34,8 @@ class KeyboardIO:
                     self.key_event = categorize(event)
                     if self.key_event.keystate == self.key_event.key_down:
                         self.ref = self.key_map[self.key_event.keycode] if self.key_event.keycode in self.key_map else [0, 0, 0]
-                        print(f"Key pressed: {self.key_event.keycode}")
                     elif self.key_event.keystate == self.key_event.key_up:
                         self.ref = [0, 0, 0]
-                        print(f"Key released: {self.key_event.keycode}")
 
         # Start the thread
         thread = threading.Thread(target=loop, daemon=True)
