@@ -50,10 +50,10 @@ KYON_LOWER_BODY_CFG = ArticulationCfg(
             "hip_pitch_2": 0.7,
             "hip_pitch_3": -0.7,
             "hip_pitch_4": 0.7,
-            "hip_roll_1": 0,
-            "hip_roll_2": 0,
-            "hip_roll_3": 0,
-            "hip_roll_4": 0,
+            "hip_roll_1": 0.25,
+            "hip_roll_2": -0.25,
+            "hip_roll_3": -0.25,
+            "hip_roll_4": 0.25,
             "knee_pitch_1": 1.4,
             "knee_pitch_2": -1.4,
             "knee_pitch_3": 1.4,
@@ -61,42 +61,74 @@ KYON_LOWER_BODY_CFG = ArticulationCfg(
         }
     ),
     actuators={
-        "hip_roll": DelayedPDActuatorCfg(
+        # "hip_roll": DelayedPDActuatorCfg(
+        #     joint_names_expr=["hip_roll_[1-2-3-4]"],
+        #     # saturation_effort=185,
+        #     effort_limit=185,
+        #     velocity_limit=7.6,
+        #     stiffness=500, #8000.0,
+        #     damping=10,
+        #     armature=0.234,
+        #     friction=4.68e-1,
+        #     min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
+        #     max_delay=8,  # physics time steps (max: 2.0*4=8.0ms)
+        # ),
+        # "hip_pitch": DelayedPDActuatorCfg(
+        #     joint_names_expr=["hip_pitch_[1-2-3-4]"],
+        #     # saturation_effort=185,
+        #     effort_limit=185,
+        #     velocity_limit=7.6,
+        #     stiffness=500.0,
+        #     damping=10,
+        #     armature=0.234,
+        #     friction=4.68e-1,
+        #     min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
+        #     max_delay=8,  # physics time steps (max: 2.0*4=8.0ms)
+        #     # dynamic_friction=
+        # ),
+        # "knee_pitch": DelayedPDActuatorCfg(
+        #     joint_names_expr=["knee_pitch_[1-2-3-4]"],
+        #     # saturation_effort=185,
+        #     effort_limit=185,
+        #     velocity_limit=7.6,
+        #     stiffness=500, #4000,
+        #     damping=10,
+        #     armature=0.234,
+        #     friction=4.68e-1,
+        #     min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
+        #     max_delay=8,  # physics time steps (max: 2.0*4=8.0ms)
+        # ),
+
+         "hip_roll": DCMotorCfg(
             joint_names_expr=["hip_roll_[1-2-3-4]"],
-            # saturation_effort=185,
+            saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
             stiffness=500, #8000.0,
             damping=10,
             armature=0.234,
             friction=4.68e-1,
-            min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
-            max_delay=8,  # physics time steps (max: 2.0*4=8.0ms)
         ),
-        "hip_pitch": DelayedPDActuatorCfg(
+        "hip_pitch": DCMotorCfg(
             joint_names_expr=["hip_pitch_[1-2-3-4]"],
-            # saturation_effort=185,
+            saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
             stiffness=500.0,
             damping=10,
             armature=0.234,
             friction=4.68e-1,
-            min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
-            max_delay=8,  # physics time steps (max: 2.0*4=8.0ms)
             # dynamic_friction=
         ),
-        "knee_pitch": DelayedPDActuatorCfg(
+        "knee_pitch": DCMotorCfg(
             joint_names_expr=["knee_pitch_[1-2-3-4]"],
-            # saturation_effort=185,
+            saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
             stiffness=500, #4000,
             damping=10,
             armature=0.234,
             friction=4.68e-1,
-            min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
-            max_delay=8,  # physics time steps (max: 2.0*4=8.0ms)
         ),
     },
     #TODO what these do?

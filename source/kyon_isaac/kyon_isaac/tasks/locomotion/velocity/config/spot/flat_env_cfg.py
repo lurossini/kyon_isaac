@@ -430,7 +430,7 @@ class KyonRewardsCfg:
         },
     )
     gait = RewardTermCfg(
-        func=spot_mdp.GaitReward,
+        func=kyon_mdp.GaitReward,
         weight=10.0,
         params={
             "std": 0.1,
@@ -469,15 +469,15 @@ class KyonRewardsCfg:
         weight=-1.0e-4,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
     )
-    # joint_pos = RewardTermCfg(
-    #     func=spot_mdp.joint_position_penalty,
-    #     weight=-0.7,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", joint_names="hip_roll_.*"),
-    #         "stand_still_scale": 5.0,
-    #         "velocity_threshold": 0.5,
-    #     },
-    # )
+    joint_pos = RewardTermCfg(
+        func=kyon_mdp.joint_position_penalty,
+        weight=-0.7,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names="hip_roll_.*"),
+            "stand_still_scale": 5.0,
+            "velocity_threshold": 0.5,
+        },
+    )
     joint_torques = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
         weight=-5.0e-4,
