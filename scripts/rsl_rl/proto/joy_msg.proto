@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+message JoyMsg {
+    int32 seq = 1;
+    int64 stamp = 2;
+    repeated float axes = 3;
+    repeated int32 buttons = 4;
+}

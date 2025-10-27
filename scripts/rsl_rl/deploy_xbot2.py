@@ -94,26 +94,15 @@ if args.interactive and args.keyboard:
 # joy
 if args.interactive:
     import pygame
-    os.environ["SDL_JOYSTICK_DEVICE"] = "/dev/input/js0"
+    import zmq
+    from proto import joy_msg_pb2
 
-    pygame.init()
-    pygame.joystick.init()
+    REMOTE_IP = 'localhost'
+    context = zmq.Context()
+    socket = context.socket(zmq.SUB)
+    socket.bind(f"tcp://{REMOTE_IP}:5050")
+    socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all topics
 
-    # Check for joysticks
-    if pygame.joystick.get_count() == 0:
-        print("No joystick connected.")
-        exit()
-
-    joystick = pygame.joystick.Joystick(0)
-    joystick.init()
-
-    print(f"Joystick detected: {joystick.get_name()}")
-
-    DEADZONE = 0.1
-    def apply_deadzone(value, deadzone=DEADZONE):
-        if abs(value) < deadzone:
-            return 0.0
-        return value
 # keyboard
 if args.keyboard:
     from keyboard_input import KeyboardIO
@@ -211,6 +200,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     mean_time_inference = np.zeros(100)
     i = 0
+    rx_msg = joy_msg_pb2.JoyMsg()
 
     # simulate environment
     while simulation_app.is_running():
@@ -221,13 +211,14 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             actions = policy(obs)
             # env stepping
             obs = env.step(actions)
-            obs['policy'][:, 6:9] /= 2
             if args.interactive:
-                pygame.event.pump()
-                x_vel = -1.5 * apply_deadzone(joystick.get_axis(1))
-                y_vel = -2 * apply_deadzone(joystick.get_axis(0))
-                omega = -1.5 * apply_deadzone(joystick.get_axis(3))
-                obs['policy'][0, 6:9] = torch.Tensor([x_vel, y_vel, omega])
+                while True:
+                    try:
+                        msg = socket.recv(flags=zmq.NOBLOCK)
+                        rx_msg.ParseFromString(msg)
+                    except zmq.Again:
+                        break     
+                obs['policy'][0, 6:9] = torch.Tensor([-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]])   
             if args.keyboard:
                 obs['policy'][0, 6:9] = torch.Tensor(kio.get_key())
             # obs, _, _, _ = env.step(actions)

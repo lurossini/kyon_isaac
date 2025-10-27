@@ -56,7 +56,6 @@ class KeyboardIO:
         thread.start()
     
     def get_key(self) -> list:
-        print(self.ref.tolist())
         return self.ref.tolist()
 
 
