@@ -28,7 +28,8 @@ import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
 ##
 # Pre-defined configs
 ##
-from kyon_isaac.assets.kyon import KYON_LOWER_BODY_CFG  # isort: skip
+from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN  # isort: skip
+from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY  # isort: skip
 
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
@@ -549,7 +550,7 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         
         # switch robot to Kyon-d
-        self.scene.robot = KYON_LOWER_BODY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_LOWER_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # imu
         self.scene.imu_sensor = ImuCfg(prim_path="{ENV_REGEX_NS}/Robot/imu_link")
@@ -593,6 +594,8 @@ class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
         self.scene.env_spacing = 2.5
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
+
+        self.scene.robot = KYON_LOWER_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # reduce the number of terrains to save memory
         if self.scene.terrain.terrain_generator is not None:

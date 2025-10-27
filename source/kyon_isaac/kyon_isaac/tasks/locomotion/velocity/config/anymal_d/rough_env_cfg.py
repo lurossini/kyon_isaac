@@ -10,7 +10,8 @@ from kyon_isaac.tasks.locomotion.velocity.velocity_env_cfg import LocomotionVelo
 ##
 # Pre-defined configs
 ##
-from kyon_isaac.assets.kyon import KYON_LOWER_BODY_CFG  # isort: skip
+from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN  # isort: skip
+from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY  # isort: skip
 from kyon_isaac.assets.kyon_id import KYON_CFG
 
 
@@ -20,7 +21,7 @@ class KyonRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         super().__post_init__()
         # switch robot to anymal-d
-        self.scene.robot = KYON_LOWER_BODY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_LOWER_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 @configclass
@@ -39,6 +40,8 @@ class KyonRoughEnvCfg_PLAY(KyonRoughEnvCfg):
             self.scene.terrain.terrain_generator.num_rows = 5
             self.scene.terrain.terrain_generator.num_cols = 5
             self.scene.terrain.terrain_generator.curriculum = False
+
+        self.scene.robot = KYON_LOWER_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # disable randomization for play
         self.observations.policy.enable_corruption = False

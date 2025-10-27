@@ -45,7 +45,7 @@ from isaaclab.utils import configclass
 ##
 # Pre-defined configs
 ##
-from kyon_isaac.assets.kyon import KYON_LOWER_BODY_CFG  # isort:skip
+from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG  # isort:skip
 
 
 @configclass
