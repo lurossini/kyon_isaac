@@ -57,7 +57,6 @@ def main():
                 msg.axes.append(joystick.get_axis(i))
                 msg.buttons.append(joystick.get_button(i))
             seq += 1
-            print([msg.axes[1], msg.axes[0], msg.axes[3]])
             msg_str = msg.SerializeToString()
             socket.send(msg_str)
             time.sleep(1./rate)

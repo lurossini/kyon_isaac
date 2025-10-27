@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
 from isaaclab.assets import Articulation
+from isaaclab.managers import ManagerTermBase
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
