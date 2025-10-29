@@ -66,24 +66,26 @@ KYON_LOWER_BODY_CFG_TRAIN = ArticulationCfg(
             # saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
-            stiffness=500, #8000.0,
+            stiffness=350, #8000.0,
             damping=10,
             armature=0.234,
-            friction=4.68e-1,
-            min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
-            max_delay=8,  # physics time steps (max: 2.0*4=8.0ms)
+            friction=4.68,
+            dynamic_friction=1.7,
+            min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
+            max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),
         "hip_pitch": DelayedPDActuatorCfg(
             joint_names_expr=["hip_pitch_[1-2-3-4]"],
             # saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
-            stiffness=500.0,
+            stiffness=350.0,
             damping=10,
             armature=0.234,
-            friction=4.68e-1,
-            min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
-            max_delay=8,  # physics time steps (max: 2.0*4=8.0ms)
+            friction=4.68,
+            dynamic_friction=1.7,
+            min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
+            max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
             # dynamic_friction=
         ),
         "knee_pitch": DelayedPDActuatorCfg(
@@ -91,12 +93,13 @@ KYON_LOWER_BODY_CFG_TRAIN = ArticulationCfg(
             # saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
-            stiffness=500, #4000,
+            stiffness=350, #4000,
             damping=10,
             armature=0.234,
-            friction=4.68e-1,
-            min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
-            max_delay=8,  # physics time steps (max: 2.0*4=8.0ms)
+            friction=4.68,
+            dynamic_friction=1.7,
+            min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
+            max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),
     },
     #TODO what these do?

@@ -66,31 +66,33 @@ KYON_LOWER_BODY_CFG_PLAY = ArticulationCfg(
             saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
-            stiffness=500, #8000.0,
+            stiffness=350, #8000.0,
             damping=10,
             armature=0.234,
-            friction=4.68e-1,
+            friction=4.68,
+            dynamic_friction=1.7
         ),
         "hip_pitch": DCMotorCfg(
             joint_names_expr=["hip_pitch_[1-2-3-4]"],
             saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
-            stiffness=500.0,
+            stiffness=350.0,
             damping=10,
             armature=0.234,
-            friction=4.68e-1,
-            # dynamic_friction=
+            friction=4.68,
+            dynamic_friction=1.7
         ),
         "knee_pitch": DCMotorCfg(
             joint_names_expr=["knee_pitch_[1-2-3-4]"],
             saturation_effort=185,
             effort_limit=185,
             velocity_limit=7.6,
-            stiffness=500, #4000,
+            stiffness=350, #4000,
             damping=10,
             armature=0.234,
-            friction=4.68e-1,
+            friction=4.68,
+            dynamic_friction=1.7
         ),
     },
     #TODO what these do?
