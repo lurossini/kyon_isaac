@@ -200,7 +200,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     mean_time_inference = np.zeros(100)
     i = 0
-    rx_msg = joy_msg_pb2.JoyMsg()
+    if args.interactive:
+        rx_msg = joy_msg_pb2.JoyMsg()
 
     # simulate environment
     while simulation_app.is_running():
