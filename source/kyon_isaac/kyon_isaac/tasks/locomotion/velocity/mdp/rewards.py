@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
-from isaaclab.assets import Articulation
+from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import ManagerTermBase
 
 if TYPE_CHECKING:
@@ -76,6 +76,13 @@ def joint_position_penalty(
     body_vel = torch.linalg.norm(asset.data.root_lin_vel_b[:, :2], dim=1)
     reward = torch.linalg.norm((asset.data.joint_pos - asset.data.default_joint_pos), dim=1)
     return torch.where(cmd > 0.0, reward, stand_still_scale * reward)
+
+def cost_orientation_with_gravity(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg
+) -> torch.Tensor:
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    return torch.linalg.norm((asset.data.root_quat_w[:, :2]), dim=1)
 
 class GaitReward(ManagerTermBase):
     """Gait enforcing reward term for quadrupeds.
@@ -169,3 +176,4 @@ class GaitReward(ManagerTermBase):
         se_act_0 = torch.clip(torch.square(air_time[:, foot_0] - contact_time[:, foot_1]), max=self.max_err**2)
         se_act_1 = torch.clip(torch.square(contact_time[:, foot_0] - air_time[:, foot_1]), max=self.max_err**2)
         return torch.exp(-(se_act_0 + se_act_1) / self.std)
+    
