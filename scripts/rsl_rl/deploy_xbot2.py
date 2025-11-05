@@ -38,10 +38,10 @@ parser.add_argument(
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
 parser.add_argument("--interactive", action="store_true", default=False, help="Enable joystick to send commands")
 parser.add_argument("--keyboard", action="store_true", default=False, help="Send command references through keyboard")
-# append RSL-RL cli arguments
-cli_args.add_rsl_rl_args(parser)
+parser.add_argument("--gui", action="store_true", default=False, help="Enable communication with xbot2-gui")
 
-args = parser.parse_args()
+## append RSL-RL cli arguments
+cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
@@ -57,6 +57,7 @@ sys.argv = [sys.argv[0]] + hydra_args
 args_cli.headless = True
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
+
 
 """Rest everything follows."""
 
@@ -88,25 +89,35 @@ import kyon_isaac.tasks  # noqa: F401
 from kyon_isaac.env.manager_based_xbot2_env import ManagerBasedXBot2Env
 
 
-if args.interactive and args.keyboard:
+if args_cli.interactive and args_cli.keyboard:
     raise RuntimeError("both joystick and keyboard enabled, please set one to False")
 
 # joy
-if args.interactive:
+if args_cli.interactive:
     import pygame
     import zmq
     from proto import joy_msg_pb2
 
-    REMOTE_IP = 'localhost'
+    REMOTE_IP = '*'
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.bind(f"tcp://{REMOTE_IP}:5050")
     socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all topics
 
 # keyboard
-if args.keyboard:
+if args_cli.keyboard:
     from keyboard_input import KeyboardIO
     kio = KeyboardIO()
+
+if args_cli.gui:
+    import zmq
+
+    REMOTE_IP = '*'
+    context = zmq.Context()
+    socket = context.socket(zmq.SUB)
+    socket.bind(f"tcp://{REMOTE_IP}:5051")
+    print(f'connected to tcp://{REMOTE_IP}:5051')
+    socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all topics
 
 
 # PLACEHOLDER: Extension template (do not remove this comment)
@@ -200,9 +211,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     mean_time_inference = np.zeros(100)
     i = 0
-    if args.interactive:
+    if args_cli.interactive:
         rx_msg = joy_msg_pb2.JoyMsg()
 
+    ref = [0., 0., 0.]
     # simulate environment
     while simulation_app.is_running():
         start_time = time.time()
@@ -212,16 +224,25 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             actions = policy(obs)
             # env stepping
             obs = env.step(actions)
-            if args.interactive:
+            if args_cli.interactive:
                 while True:
                     try:
                         msg = socket.recv(flags=zmq.NOBLOCK)
                         rx_msg.ParseFromString(msg)
+                        ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
                     except zmq.Again:
                         break     
-                obs['policy'][0, 6:9] = torch.Tensor([-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]])   
-            if args.keyboard:
+                obs['policy'][0, 6:9] = torch.Tensor(ref)   
+            if args_cli.keyboard:
                 obs['policy'][0, 6:9] = torch.Tensor(kio.get_key())
+            if args_cli.gui:
+                while True:
+                    try:
+                        msg = socket.recv_json(flags=zmq.NOBLOCK)
+                        ref = [msg['vref'][0], msg['vref'][1], msg['vref'][5]]
+                    except zmq.Again:
+                        break   
+                obs['policy'][0, 6:9] = torch.Tensor(ref)  
             # obs, _, _, _ = env.step(actions)
 
         end_time = time.time()
