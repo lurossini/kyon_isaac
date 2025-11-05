@@ -280,6 +280,7 @@ class KyonEventCfg:
 
     gravity = EventTerm(
         func=mdp.randomize_physics_scene_gravity,
+        mode="interval",
         interval_range_s=(8.0, 12.0),
         params={
             "gravity_distribution_params": ([-0.15 * 9.81, -0.15 * 9.81, 0.0], [0.15 * 9.81, 0.15 * 9.81, 0.0]),
