@@ -130,6 +130,49 @@ class KyonObservationsMjxCfg:
             }, 
         )
 
+        material_props = ObsTerm(
+            func=kyon_mdp.get_material_parameter,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=["contact_1", "contact_2", "contact_3", "contact_4"],),
+                "inference_mode": False,
+            }
+        )
+
+        joint_effort = ObsTerm(
+            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}
+        )
+        def __post_init__(self):
+            self.enable_corruption = False
+            self.concatenate_terms = True
+
+    @configclass
+    class PrivilegedCfg(ObsGroup):
+        """Observations for critic group."""
+
+        # `` observation terms (order preserved)
+        base_lin_vel = ObsTerm(
+            func=mdp.base_lin_vel, params={"asset_cfg": SceneEntityCfg("robot")}
+        )
+
+        imu_lin_acc = ObsTerm(
+            func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("imu_sensor")}
+        )
+
+        contact_forces = ObsTerm(
+            func=kyon_mdp.contact_forces, 
+            params={
+                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")
+            }, 
+        )
+
+        material_props = ObsTerm(
+            func=kyon_mdp.get_material_parameter,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=["contact_1", "contact_2", "contact_3", "contact_4"],),
+                "inference_mode": False,
+            }
+        )
+
         joint_effort = ObsTerm(
             func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}
         )
@@ -140,6 +183,7 @@ class KyonObservationsMjxCfg:
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
+    privileged: PrivilegedCfg = PrivilegedCfg()
 
 @configclass
 class KyonObservationsCfg:
@@ -516,7 +560,7 @@ class KyonTerminationsCfg:
 class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 
     # Basic settings
-    observations: KyonObservationsCfg = KyonObservationsMjxCfg()
+    observations: KyonObservationsMjxCfg = KyonObservationsMjxCfg()
     actions: KyonActionsCfg = KyonActionsCfg()
     commands: KyonCommandsCfg = KyonCommandsCfg()
 
@@ -596,6 +640,8 @@ class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
         self.scene.terrain.max_init_terrain_level = None
 
         self.scene.robot = KYON_LOWER_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+        self.observations.critic.material_props.params['inference_mode'] = True
 
         # reduce the number of terrains to save memory
         if self.scene.terrain.terrain_generator is not None:
