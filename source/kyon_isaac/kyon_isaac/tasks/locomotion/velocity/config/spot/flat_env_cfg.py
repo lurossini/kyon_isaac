@@ -130,49 +130,6 @@ class KyonObservationsMjxCfg:
             }, 
         )
 
-        material_props = ObsTerm(
-            func=kyon_mdp.get_material_parameter,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=["contact_1", "contact_2", "contact_3", "contact_4"],),
-                "inference_mode": False,
-            }
-        )
-
-        joint_effort = ObsTerm(
-            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}
-        )
-        def __post_init__(self):
-            self.enable_corruption = False
-            self.concatenate_terms = True
-
-    @configclass
-    class PrivilegedCfg(ObsGroup):
-        """Observations for critic group."""
-
-        # `` observation terms (order preserved)
-        base_lin_vel = ObsTerm(
-            func=mdp.base_lin_vel, params={"asset_cfg": SceneEntityCfg("robot")}
-        )
-
-        imu_lin_acc = ObsTerm(
-            func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("imu_sensor")}
-        )
-
-        contact_forces = ObsTerm(
-            func=kyon_mdp.contact_forces, 
-            params={
-                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")
-            }, 
-        )
-
-        material_props = ObsTerm(
-            func=kyon_mdp.get_material_parameter,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=["contact_1", "contact_2", "contact_3", "contact_4"],),
-                "inference_mode": False,
-            }
-        )
-
         joint_effort = ObsTerm(
             func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}
         )
@@ -183,7 +140,6 @@ class KyonObservationsMjxCfg:
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
-    privileged: PrivilegedCfg = PrivilegedCfg()
 
 @configclass
 class KyonObservationsCfg:
