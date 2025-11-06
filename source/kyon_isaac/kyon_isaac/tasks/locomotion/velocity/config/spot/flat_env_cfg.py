@@ -678,5 +678,5 @@ class KyonFullFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
-        self.scene.robot = KYON_FULL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
