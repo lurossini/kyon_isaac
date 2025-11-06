@@ -156,7 +156,7 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
             "shoulder_pitch_2": 1.5,
             "elbow_pitch_1": 2.7,
             "elbow_pitch_2": -2.7,
-            "wrist_pitch_1": 0.7
+            "wrist_pitch_1": 0.7,
             "wrist_pitch_2": -0.7,
             "wrist_yaw_1": 0.0,
             "wrist_yaw_2": 0.0,
