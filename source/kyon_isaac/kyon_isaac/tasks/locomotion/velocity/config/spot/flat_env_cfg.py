@@ -597,8 +597,6 @@ class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
 
         self.scene.robot = KYON_LOWER_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
-        self.observations.critic.material_props.params['inference_mode'] = True
-
         # reduce the number of terrains to save memory
         if self.scene.terrain.terrain_generator is not None:
             self.scene.terrain.terrain_generator.num_rows = 5
