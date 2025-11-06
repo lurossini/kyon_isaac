@@ -188,7 +188,7 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
             dynamic_friction=5.1,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
-        )
+        ),
         "motorC": DelayedPDActuatorCfg(
             joint_names_expr=["shoulder_yaw_.*", "elbow_pitch_.*"],
             # saturation_effort=185,
@@ -201,7 +201,7 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
             dynamic_friction=6.75,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
-        )
+        ),
         "motorD": DelayedPDActuatorCfg(
             joint_names_expr=["wrist_.*"],
             # saturation_effort=185,
@@ -214,7 +214,7 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
             dynamic_friction=0.7,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
-        )
+        ),
     },
     #TODO what these do?
     #soft_joint_pos_limit_factor=1.0,

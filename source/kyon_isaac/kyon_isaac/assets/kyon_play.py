@@ -156,7 +156,7 @@ KYON_FULL_BODY_CFG_PLAY = ArticulationCfg(
         }
     ),
     actuators={
-        "motorA": DCMotor(
+        "motorA": DCMotorCfg(
             joint_names_expr=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"],
             saturation_effort=185,
             effort_limit=185,
@@ -167,7 +167,7 @@ KYON_FULL_BODY_CFG_PLAY = ArticulationCfg(
             friction=4.68,
             dynamic_friction=1.7,
         ),
-        "motorB": DelayedPDActuatorCfg(
+        "motorB": DCMotorCfg(
             joint_names_expr=["shoulder_pitch_.*"],
             saturation_effort=146,
             effort_limit=146,
@@ -177,8 +177,8 @@ KYON_FULL_BODY_CFG_PLAY = ArticulationCfg(
             armature=0.472,
             friction=2.75,
             dynamic_friction=5.1,
-        )
-        "motorC": DelayedPDActuatorCfg(
+        ),
+        "motorC": DCMotorCfg(
             joint_names_expr=["shoulder_yaw_.*", "elbow_pitch_.*"],
             saturation_effort=122,
             effort_limit=122,
@@ -188,8 +188,8 @@ KYON_FULL_BODY_CFG_PLAY = ArticulationCfg(
             armature=0.382,
             friction=3.2,
             dynamic_friction=6.75,
-        )
-        "motorD": DelayedPDActuatorCfg(
+        ),
+        "motorD": DCMotorCfg(
             joint_names_expr=["wrist_.*"],
             saturation_effort=25,
             effort_limit=25,
@@ -199,7 +199,7 @@ KYON_FULL_BODY_CFG_PLAY = ArticulationCfg(
             armature=0.078,
             friction=1.,
             dynamic_friction=0.7,
-        )
+        ),
     },
     #TODO what these do?
     #soft_joint_pos_limit_factor=1.0,

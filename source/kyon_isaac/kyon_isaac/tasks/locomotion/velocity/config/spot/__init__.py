@@ -55,8 +55,6 @@ gym.register(
     },
 )
 
-
-
 gym.register(
     id="Isaac-Velocity-Slopes-KyonSpotLike-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
