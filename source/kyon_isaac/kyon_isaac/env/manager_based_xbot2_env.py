@@ -33,6 +33,19 @@ class XBot2Robot:
         self.joint_names: list[str] = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4', 
                                        'hip_pitch_1', 'hip_pitch_2', 'hip_pitch_3', 'hip_pitch_4', 
                                        'knee_pitch_1', 'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4']
+        
+        arms = True
+        if arms:
+            self.joint_names = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4', 
+                                'shoulder_yaw_1', 'shoulder_yaw_2', 
+                                'hip_pitch_1', 'hip_pitch_2', 'hip_pitch_3', 'hip_pitch_4', 
+                                'shoulder_pitch_1', 'shoulder_pitch_2', 'knee_pitch_1', 
+                                'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4', 
+                                'elbow_pitch_1', 'elbow_pitch_2',
+                                'wrist_pitch_1', 'wrist_pitch_2', 
+                                'wrist_yaw_1', 'wrist_yaw_2', 
+                                'dagana_1_clamp_joint', 'dagana_2_clamp_joint']
+
 
         self.idx_xbot_to_isaac = []
         for jn in self.joint_names:
