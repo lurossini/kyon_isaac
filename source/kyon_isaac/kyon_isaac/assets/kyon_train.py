@@ -70,7 +70,8 @@ KYON_LOWER_BODY_CFG_TRAIN = ArticulationCfg(
             damping=10,
             armature=0.234,
             friction=4.68,
-            dynamic_friction=1.7,
+            dynamic_friction=4.68,
+            viscous_friction=1.7,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),
@@ -83,7 +84,8 @@ KYON_LOWER_BODY_CFG_TRAIN = ArticulationCfg(
             damping=10,
             armature=0.234,
             friction=4.68,
-            dynamic_friction=1.7,
+            dynamic_friction=4.68,
+            viscous_friction=1.7,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
             # dynamic_friction=
@@ -97,7 +99,8 @@ KYON_LOWER_BODY_CFG_TRAIN = ArticulationCfg(
             damping=10,
             armature=0.234,
             friction=4.68,
-            dynamic_friction=1.7,
+            dynamic_friction=4.68,
+            viscous_friction=1.7,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),
@@ -172,7 +175,8 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
             damping=10,
             armature=0.234,
             friction=4.68,
-            dynamic_friction=1.7,
+            dynamic_friction=4.68,
+            viscous_friction=1.7,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),
@@ -185,7 +189,8 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
             damping=5,
             armature=0.472,
             friction=2.75,
-            dynamic_friction=5.1,
+            dynamic_friction=2.75,
+            viscous_friction=5.1,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),
@@ -198,7 +203,8 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
             damping=5,
             armature=0.382,
             friction=3.2,
-            dynamic_friction=6.75,
+            dynamic_friction=3.2,
+            viscous_friction=6.75,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),
@@ -211,7 +217,8 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
             damping=5,
             armature=0.078,
             friction=1.,
-            dynamic_friction=0.7,
+            dynamic_friction=1.,
+            viscous_friction=0.7,
             min_delay=2,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),

@@ -70,7 +70,8 @@ KYON_LOWER_BODY_CFG_PLAY = ArticulationCfg(
             damping=10,
             armature=0.234,
             friction=4.68,
-            dynamic_friction=1.7
+            dynamic_friction=4.68,
+            viscous_friction=1.7,
         ),
         "hip_pitch": DCMotorCfg(
             joint_names_expr=["hip_pitch_[1-2-3-4]"],
@@ -81,7 +82,8 @@ KYON_LOWER_BODY_CFG_PLAY = ArticulationCfg(
             damping=10,
             armature=0.234,
             friction=4.68,
-            dynamic_friction=1.7
+            dynamic_friction=4.68,
+            viscous_friction=1.7,7
         ),
         "knee_pitch": DCMotorCfg(
             joint_names_expr=["knee_pitch_[1-2-3-4]"],
@@ -92,7 +94,8 @@ KYON_LOWER_BODY_CFG_PLAY = ArticulationCfg(
             damping=10,
             armature=0.234,
             friction=4.68,
-            dynamic_friction=1.7
+            dynamic_friction=4.68,
+            viscous_friction=1.7,
         ),
     },
     #TODO what these do?
@@ -165,7 +168,8 @@ KYON_FULL_BODY_CFG_PLAY = ArticulationCfg(
             damping=10,
             armature=0.234,
             friction=4.68,
-            dynamic_friction=1.7,
+            dynamic_friction=4.68,
+            viscous_friction=1.7,
         ),
         "motorB": DCMotorCfg(
             joint_names_expr=["shoulder_pitch_.*"],
@@ -176,7 +180,8 @@ KYON_FULL_BODY_CFG_PLAY = ArticulationCfg(
             damping=5,
             armature=0.472,
             friction=2.75,
-            dynamic_friction=5.1,
+            dynamic_friction=2.75,
+            viscous_friction=5.1,
         ),
         "motorC": DCMotorCfg(
             joint_names_expr=["shoulder_yaw_.*", "elbow_pitch_.*"],
@@ -187,7 +192,8 @@ KYON_FULL_BODY_CFG_PLAY = ArticulationCfg(
             damping=5,
             armature=0.382,
             friction=3.2,
-            dynamic_friction=6.75,
+            dynamic_friction=3.2,
+            viscous_friction=6.75,
         ),
         "motorD": DCMotorCfg(
             joint_names_expr=["wrist_.*"],
@@ -198,7 +204,8 @@ KYON_FULL_BODY_CFG_PLAY = ArticulationCfg(
             damping=5,
             armature=0.078,
             friction=1.,
-            dynamic_friction=0.7,
+            dynamic_friction=1.,
+            viscous_friction=0.7,
         ),
     },
     #TODO what these do?
