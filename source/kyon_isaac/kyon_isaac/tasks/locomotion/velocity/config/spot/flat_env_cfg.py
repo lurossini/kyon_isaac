@@ -28,8 +28,8 @@ import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
 ##
 # Pre-defined configs
 ##
-from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN  # isort: skip
-from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY  # isort: skip
+from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_FULL_BODY_CFG_TRAIN
+from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_FULL_BODY_CFG_PLAY
 
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
@@ -652,3 +652,31 @@ class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
         # disable randomization for play
         self.observations.policy.enable_corruption = False
         # remove random pushing event
+
+class KyonFullFlatEnvCfg(KyonFlatEnvCfg):
+    # Basic settings
+    observations: KyonObservationsMjxCfg = KyonObservationsMjxCfg()
+    actions: KyonActionsCfg = KyonActionsCfg()
+    commands: KyonCommandsCfg = KyonCommandsCfg()
+
+    # MDP setting
+    rewards: KyonRewardsCfg = KyonRewardsCfg()
+    terminations: KyonTerminationsCfg = KyonTerminationsCfg()
+    events: KyonEventCfg = KyonEventCfg()
+
+    # Viewer
+    viewer = ViewerCfg(eye=(10.5, 10.5, 0.3), origin_type="world", env_index=0, asset_name="robot")
+
+    # Imu
+    
+    def __post_init__(self):
+        # post init of parent
+        super().__post_init__()
+        self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+class KyonFullFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
+    def __post_init__(self) -> None:
+        # post init of parent
+        super().__post_init__()
+        self.scene.robot = KYON_FULL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
