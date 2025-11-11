@@ -99,9 +99,6 @@ import kyon_isaac.tasks  # noqa: F401
 if args_cli.interactive:
     rx_msg = joy_msg_pb2.JoyMsg()
 
-ref = [0., 0., 0.]
-
-
 @hydra_task_config(args_cli.task, args_cli.agent)
 def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
     """Play with RSL-RL agent."""
@@ -198,6 +195,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # reset environment
     obs = env.get_observations()
     timestep = 0
+    ref = [0., 0., 0.]
     # simulate environment
     while simulation_app.is_running():
         start_time = time.time()
