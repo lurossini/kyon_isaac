@@ -34,6 +34,8 @@ parser.add_argument(
     help="Use the pre-trained checkpoint from Nucleus.",
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
+parser.add_argument("--interactive", action="store_true", default=False, help="Run in real-time, if possible.")
+
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -43,6 +45,18 @@ args_cli, hydra_args = parser.parse_known_args()
 # always enable cameras to record video
 if args_cli.video:
     args_cli.enable_cameras = True
+
+# joy
+if args_cli.interactive:
+    import pygame
+    import zmq
+    from proto import joy_msg_pb2
+
+    REMOTE_IP = '*'
+    context = zmq.Context()
+    socket = context.socket(zmq.SUB)
+    socket.bind(f"tcp://{REMOTE_IP}:5050")
+    socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all topics
 
 # clear out sys.argv for Hydra
 sys.argv = [sys.argv[0]] + hydra_args
@@ -81,6 +95,11 @@ import kyon_isaac.tasks  # noqa: F401
 
 
 # PLACEHOLDER: Extension template (do not remove this comment)
+
+if args_cli.interactive:
+    rx_msg = joy_msg_pb2.JoyMsg()
+
+ref = [0., 0., 0.]
 
 
 @hydra_task_config(args_cli.task, args_cli.agent)
@@ -188,6 +207,15 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             actions = policy(obs)
             # env stepping
             obs, _, _, _ = env.step(actions)
+            if args_cli.interactive:
+                    while True:
+                        try:
+                            msg = socket.recv(flags=zmq.NOBLOCK)
+                            rx_msg.ParseFromString(msg)
+                            ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
+                        except zmq.Again:
+                            break     
+                    obs['policy'][0, 6:9] = torch.Tensor(ref)   
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video
