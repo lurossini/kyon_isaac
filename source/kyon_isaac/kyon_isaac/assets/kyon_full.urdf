@@ -82,7 +82,7 @@
     <parent link="pelvis"/>
     <child link="hesai_lidar"/>
   </joint>
-  <!-- <link name="shoulder_yaw_1_link">
+  <link name="shoulder_yaw_1_link">
     <inertial>
       <origin xyz="-0.00036680683 -0.00091946646 0.039513613999999996"/>
       <mass value="0.68281255"/>
@@ -379,7 +379,7 @@
     <origin rpy="0.0 1.57079632679 0.0" xyz="0.0361625 0.016 0.044"/>
     <axis xyz="0 0 1"/>
     <limit effort="25" lower="-3.3266" upper="3.3266" velocity="14"/>
-  </joint> -->
+  </joint>
   <!-- /macro legs -->
   <!-- links -->
   <link name="hip_roll_1_link">
