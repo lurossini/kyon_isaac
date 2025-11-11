@@ -185,13 +185,7 @@ class KyonEventCfg:
     """Configuration for randomization."""
 
     # startup
-    reset_arms = EventTerm(
-        func=kyon_mdp.reset_joint_target_to_default, 
-        mode="startup",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
-        },
-    )
+    reset_arms = None
 
     physics_material = EventTerm(
         func=mdp.randomize_rigid_body_material,
@@ -202,6 +196,7 @@ class KyonEventCfg:
             "dynamic_friction_range": (0.3, 0.8),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 64,
+            "make_consistent": True,
         },
     )
 
@@ -222,7 +217,7 @@ class KyonEventCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "operation": "scale",
-            "friction_distribution_params": (0.8, 1.2),
+            "friction_distribution_params": (0.8, 1.0),
             "armature_distribution_params": (0.8, 1.2),
         }
     )
@@ -325,7 +320,7 @@ class KyonRewardsMjxCfg:
         weight=-2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"), 
-            "target_height": 0.1,
+            "target_height": 0.2,
         }
     )
     # foot_clearance = RewardTermCfg(
@@ -430,7 +425,8 @@ class KyonRewardsCfg:
     )
     foot_clearance = RewardTermCfg(
         func=spot_mdp.foot_clearance_reward,
-        weight=0.5,
+        # weight=0.5,
+        weight=1.,
         params={
             "std": 0.05,
             "tanh_mult": 2.0,
@@ -480,7 +476,8 @@ class KyonRewardsCfg:
     )
     joint_pos = RewardTermCfg(
         func=kyon_mdp.joint_position_penalty,
-        weight=-0.7,
+        # weight=-0.7,
+        weight=-1.4,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names="hip_roll_.*"),
             "stand_still_scale": 5.0,
@@ -563,10 +560,6 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # imu
         self.scene.imu_sensor = ImuCfg(prim_path="{ENV_REGEX_NS}/Robot/imu_link")
 
-        # self.scene.action_history = ActionHistorySensorCfg(prim_path="{ENV_REGEX_NS}/Robot", history_length=3)
-
-
-
         # terrain
         self.scene.terrain = TerrainImporterCfg(
             prim_path="/World/ground",
@@ -605,6 +598,7 @@ class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
 
         self.scene.robot = KYON_LOWER_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
+
         # reduce the number of terrains to save memory
         if self.scene.terrain.terrain_generator is not None:
             self.scene.terrain.terrain_generator.num_rows = 5
@@ -616,25 +610,19 @@ class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
         # remove random pushing event
 
 class KyonFullFlatEnvCfg(KyonFlatEnvCfg):
-    # Basic settings
-    observations: KyonObservationsMjxCfg = KyonObservationsMjxCfg()
-    actions: KyonActionsCfg = KyonActionsCfg()
-    commands: KyonCommandsCfg = KyonCommandsCfg()
-
-    # MDP setting
-    rewards: KyonRewardsCfg = KyonRewardsCfg()
-    terminations: KyonTerminationsCfg = KyonTerminationsCfg()
-    events: KyonEventCfg = KyonEventCfg()
-
-    # Viewer
-    viewer = ViewerCfg(eye=(10.5, 10.5, 0.3), origin_type="world", env_index=0, asset_name="robot")
-
-    # Imu
     
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
         self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+        self.events.reset_arms = EventTerm(
+            func=kyon_mdp.reset_joint_target_to_default, 
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
+            },
+        )
 
 class KyonFullFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
     def __post_init__(self) -> None:
