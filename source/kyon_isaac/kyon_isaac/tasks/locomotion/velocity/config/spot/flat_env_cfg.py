@@ -15,7 +15,7 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-from isaaclab.sensors import ContactSensorCfg, ImuCfg
+from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
@@ -137,9 +137,18 @@ class KyonObservationsMjxCfg:
             self.enable_corruption = False
             self.concatenate_terms = True
 
+    @configclass
+    class RGBCameraPolicyCfg(PolicyCfg):
+        """Observations for policy group with RGB images."""
+
+        front_up_cam = ObsTerm(
+            func=mdp.image, params={"sensor_cfg": SceneEntityCfg("front_up_camera"), "data_type": ["rgb", "distance_to_image_plane"], "normalize": False}
+        )
+
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
+    # rgb_cam: RGBCameraPolicyCfg = RGBCameraPolicyCfg()
 
 @configclass
 class KyonObservationsCfg:
@@ -426,11 +435,11 @@ class KyonRewardsCfg:
     foot_clearance = RewardTermCfg(
         func=spot_mdp.foot_clearance_reward,
         # weight=0.5,
-        weight=1.,
+        weight=4.,
         params={
             "std": 0.05,
             "tanh_mult": 2.0,
-            "target_height": 0.1,
+            "target_height": 0.2,
             "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
         },
     )
@@ -629,4 +638,42 @@ class KyonFullFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
         # post init of parent
         super().__post_init__()
         self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+class KyonCameraFlatEnvCfg(KyonFlatEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        # Set left and right wrist cameras for VLA policy training
+        self.scene.front_up_camera = CameraCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
+            update_period=0.0333,
+            height=256,
+            width=256,
+            data_types=["rgb", "distance_to_image_plane"],
+            debug_vis=True,
+            spawn=sim_utils.PinholeCameraCfg(
+                focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+            ),
+            offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+        )
+
+        self.image_obs_list = ["front_up_camera"]
+
+class KyonCameraFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
+    def __post_init__(self):
+        super().__post_init__()
+        # Set left and right wrist cameras for VLA policy training
+        self.scene.front_up_camera = CameraCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
+            update_period=0.0333,
+            height=256,
+            width=256,
+            data_types=["rgb", "distance_to_image_plane"],
+            debug_vis=True,
+            spawn=sim_utils.PinholeCameraCfg(
+                focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+            ),
+            offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+        )
+
+        self.image_obs_list = ["front_up_camera"]
 
