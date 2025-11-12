@@ -138,17 +138,21 @@ class KyonObservationsMjxCfg:
             self.concatenate_terms = True
 
     @configclass
-    class RGBCameraPolicyCfg(PolicyCfg):
+    class RGBCameraPolicyCfg(ObsTerm):
         """Observations for policy group with RGB images."""
 
         front_up_cam = ObsTerm(
-            func=mdp.image, params={"sensor_cfg": SceneEntityCfg("front_up_camera"), "data_type": ["rgb", "distance_to_image_plane"], "normalize": False}
+            # func=mdp.image, params={"sensor_cfg": SceneEntityCfg("front_up_camera"), "data_type": ["rgb", "distance_to_image_plane"], "normalize": False}
+            func=mdp.image, params={"sensor_cfg": SceneEntityCfg("front_up_camera"), "data_type": "rgb", "normalize": False}
         )
+        def __post_init__(self):
+            self.enable_corruption = False
+            self.concatenate_terms = False
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
-    # rgb_cam: RGBCameraPolicyCfg = RGBCameraPolicyCfg()
+    rgb_cam: RGBCameraPolicyCfg = RGBCameraPolicyCfg()
 
 @configclass
 class KyonObservationsCfg:
@@ -289,125 +293,6 @@ class KyonEventCfg:
             "velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)},
         },
     )
-
-@configclass
-class KyonRewardsMjxCfg:
-    air_time = RewardTermCfg(
-        func=kyon_mdp.reward_feet_air_time,
-              weight=0.1,
-              params={
-                    "asset_cfg": SceneEntityCfg("robot"),
-                    "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
-              },
-    )
-    # air_time = RewardTermCfg(
-    #     func=spot_mdp.air_time_reward,
-    #     weight=5.0,
-    #     params={
-    #         "mode_time": 0.3,
-    #         "velocity_threshold": 0.5,
-    #         "asset_cfg": SceneEntityCfg("robot"),
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
-    #     },
-    # )
-    base_angular_velocity = RewardTermCfg(
-        func=kyon_mdp.reward_tracking_ang_vel,
-        weight=0.8,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-            },
-    )
-    base_linear_velocity = RewardTermCfg(
-        func=kyon_mdp.reward_tracking_lin_vel,
-        weight=1.5,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-        }
-    )
-    foot_clearance = RewardTermCfg(
-        func=kyon_mdp.cost_feet_clearance,
-        weight=-2.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"), 
-            "target_height": 0.2,
-        }
-    )
-    # foot_clearance = RewardTermCfg(
-    #     func=spot_mdp.foot_clearance_reward,
-    #     weight=0.5,
-    #     params={
-    #         "std": 0.05,
-    #         "tanh_mult": 2.0,
-    #         "target_height": 0.1,
-    #         "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
-    #     },
-    # )
-    lin_vel_z = RewardTermCfg(
-        func=kyon_mdp.cost_lin_vel_z,
-        weight=-2.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-        }
-    )
-    ang_vel_xy = RewardTermCfg(
-        func=kyon_mdp.cost_ang_vel_xy,
-        weight=-0.05,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-        }
-    )
-    orientation = RewardTermCfg(
-        func=kyon_mdp.cost_orientation,
-        weight=-5.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-        }
-    )
-    posture = RewardTermCfg(
-        func=kyon_mdp.reward_posture,
-        weight=1.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-        }
-    )
-    torques = RewardTermCfg(
-        func=kyon_mdp.cost_torques,
-        weight=-0.0002,
-        params={"asset_cfg": SceneEntityCfg("robot")},
-    )
-    # action_rate = RewardTermCfg(
-    #     func=kyon_mdp.cost_action_rate,
-    #     weight=-0.01,
-    #     params={
-    #         "sensor_cfg": SceneEntityCfg("action_history")
-    #     }
-    # )
-    energy = RewardTermCfg(
-        func=kyon_mdp.cost_energy,
-        weight=-0.001,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-        }
-    )
-    feet_slip = RewardTermCfg(
-        func=kyon_mdp.cost_feet_slip,
-        weight=-0.1,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
-            "threshold": 1.0,
-        }
-    )
-    # foot_slip = RewardTermCfg(
-    #     func=spot_mdp.foot_slip_penalty,
-    #     weight=-0.5,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
-    #         "threshold": 1.0,
-    #     },
-    # )
-
 
 @configclass
 class KyonRewardsCfg:

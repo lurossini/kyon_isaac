@@ -123,7 +123,7 @@ gym.register(
 )
 
 gym.register(
-    id="Isaac-Velocity-Flat-KyonCameraSpotLike-PLAY-v0",
+    id="Isaac-Velocity-Flat-KyonCameraSpotLike-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -134,7 +134,7 @@ gym.register(
 )
 
 gym.register(
-    id="Isaac-Velocity-Flat-KyonCameraSpotLike-v0",
+    id="Isaac-Velocity-Flat-KyonCameraSpotLike-PLAY-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
