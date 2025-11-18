@@ -51,7 +51,7 @@ class KyonVisionPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     store_code_state = False
     obs_groups = {"policy": ["policy"], "critic": ["critic"], "rgb": ["rgb_cam"]}
     policy = RslRlPpoActorCriticCfg(
-        class_name="ActorCriticWithCNN"
+        class_name="ActorCriticWithCNN",
         init_noise_std=1.0,
         actor_obs_normalization=True, 
         critic_obs_normalization=True,
