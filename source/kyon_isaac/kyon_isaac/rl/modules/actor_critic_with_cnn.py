@@ -116,8 +116,10 @@ class ActorCriticWithCNN(nn.Module):
     def act(self, obs: TensorDict, **kwargs: dict[str, Any]) -> torch.Tensor:
         # encoder pass
         obs_rgb = self.get_cnn_obs(obs)
+
         # Compute mean
         self.latent = self.cnn(obs_rgb)
+
         
         obs = self.get_actor_obs(obs)
         obs = torch.cat([obs, self.latent], dim=-1)

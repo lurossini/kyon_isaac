@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from rsl_rl.utils import *
 
-class CNN(nn.Module):
+class CNN(nn.Sequential):
     def __init__(self,
                  resolution: tuple[int] | list[int],
                  in_channels: int,
@@ -13,25 +13,52 @@ class CNN(nn.Module):
                  pool_kernel_size: tuple[int] | list[int] = [2, 2],
                  activation: str = "elu"):
         
-        assert len(hidden_channel_size) != len(kernel_size), "In CNN module initialization: kernel_size and hidden_channel_size vectors have different lengths"
+        assert len(hidden_channel_size) == len(kernel_size), "In CNN module initialization: kernel_size and hidden_channel_size vectors have different lengths"
         super().__init__()
-        self.layers = []
+        layers = []
 
         # add first convolutional layer
-        self.layers.append(nn.Conv2d(in_channels=in_channels, out_channels=hidden_channel_size[0], kernel_size=kernel_size[0], padding=1))
-        self.layers.append(resolve_nn_activation(activation))
-        self.layers.append(nn.MaxPool2d(kernel_size=pool_kernel_size[0], stride=2))
+        layers.append(nn.Conv2d(in_channels=in_channels, out_channels=hidden_channel_size[0], kernel_size=kernel_size[0], stride=1, padding=1))
+        layers.append(nn.MaxPool2d(kernel_size=pool_kernel_size[0], stride=2))
+        layers.append(resolve_nn_activation(activation))
 
         for layer_index in range(len(hidden_channel_size) - 1):
-            self.layers.append(nn.Conv2d(in_channels=hidden_channel_size[layer_index], out_channels=hidden_channel_size[layer_index+1], kernel_size=kernel_size[layer_index+1], padding=1))
-            self.layers.append(resolve_nn_activation(activation))
-            self.layers.append(nn.MaxPool2d(kernel_size=pool_kernel_size[layer_index+1], stride=2))
+            layers.append(nn.Conv2d(in_channels=hidden_channel_size[layer_index], out_channels=hidden_channel_size[layer_index+1], kernel_size=kernel_size[layer_index+1], stride=1, padding=1))
+            layers.append(nn.MaxPool2d(kernel_size=pool_kernel_size[layer_index+1], stride=2))
+            layers.append(resolve_nn_activation(activation))
 
         # add fully connected layer
-        input_dim = (resolution[0] / len(pool_kernel_size)) * (resolution[1] / len(pool_kernel_size)) * hidden_channel_size[-1]
-        self.layers.append(nn.Linear(in_features=input_dim, out_features=latent_dim)) 
+        with torch.no_grad():
+            dummy_image = torch.zeros(1, 3, *resolution)
+            x = dummy_image
+            for layer in layers:
+                x = layer(x)
+            image_feature_size = x.view(1, -1).shape[1]
+        layers.append(nn.Linear(in_features=image_feature_size, out_features=latent_dim)) 
+        layers.append(nn.LayerNorm(latent_dim))
+
+        self._initialize_weights()
+
+        for idx, layer in enumerate(layers):
+            self.add_module(f"{idx}", layer)
+
+    def _initialize_weights(self):
+        for layer in self:
+            if isinstance(layer, nn.Conv2d):
+                nn.init.kaiming_normal_(layer.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(layer, nn.Linear):
+                nn.init.kaiming_normal_(layer.weight, mode="fan_out", nonlinearity="tanh")
+                nn.init.constant_(layer.bias, 0)
+            elif isinstance(layer, nn.LayerNorm):
+                nn.init.constant_(layer.weight, 1.0)
+                nn.init.constant_(layer.bias, 0.0)
 
     def forward(self, x):
-        for layer in self.layers:
+        x = torch.permute(x, (0, 3, 1, 2))
+        if x.dtype == torch.uint8:
+            x = x.float()
+        for layer in self:
+            if isinstance(layer, nn.Linear):
+                x = x.reshape(x.size(0), -1)
             x = layer(x)
         return x

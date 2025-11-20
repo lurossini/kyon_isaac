@@ -84,6 +84,20 @@ def cost_orientation_with_gravity(
     asset: RigidObject = env.scene[asset_cfg.name]
     return torch.linalg.norm((asset.data.root_quat_w[:, :2]), dim=1)
 
+def goal_reached(
+    env: ManagerBasedRLEnv,
+    source_asset_cfg: SceneEntityCfg,
+    target_asset_cfg: SceneEntityCfg,
+    threshold: float
+) -> torch.Tensor:
+    source_asset: Articulation = env.scene[source_asset_cfg.name]
+    target_asset: RigidObject | Articulation = env.scene[target_asset_cfg.name]
+
+    source_pos = source_asset.data.root_pos_w
+    target_pos = target_asset.data.root_pos_w
+
+    return torch.where(torch.norm(target_pos - source_pos, dim=1) < threshold, 1, 0)
+
 class GaitReward(ManagerTermBase):
     """Gait enforcing reward term for quadrupeds.
 

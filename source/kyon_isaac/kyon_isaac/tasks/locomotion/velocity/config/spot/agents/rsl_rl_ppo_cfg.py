@@ -47,9 +47,9 @@ class KyonVisionPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 20000
     save_interval = 50
-    experiment_name = "kyon_vision"
+    experiment_name = "kyon_navigation"
     store_code_state = False
-    obs_groups = {"policy": ["policy"], "critic": ["critic"], "rgb": ["rgb_cam"]}
+    obs_groups = {"policy": ["policy"], "critic": ["critic"], "rgb": ["rgb"]}
     policy = RslRlPpoActorCriticCfg(
         class_name="ActorCriticWithCNN",
         init_noise_std=1.0,
@@ -57,6 +57,7 @@ class KyonVisionPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         critic_obs_normalization=True,
         actor_hidden_dims=[256, 256, 256, 256], 
         critic_hidden_dims=[256, 256, 256, 256], 
+        resolution=(64, 64),
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
@@ -65,7 +66,7 @@ class KyonVisionPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         clip_param=0.2,
         entropy_coef=0.0025,
         num_learning_epochs=5,
-        num_mini_batches=32, 
+        num_mini_batches=4, 
         learning_rate=3.0e-4,  
         schedule="adaptive",
         gamma=0.97,

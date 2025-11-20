@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
-from isaaclab.assets import Articulation
+from isaaclab.assets import Articulation, RigidObject
 from isaaclab_tasks.manager_based.locomotion.velocity import mdp
 
 # from kyon_isaac.sensors import ActionHistorySensor
@@ -48,3 +48,15 @@ def joint_pos_error(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEnt
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
     return asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.joint_pos_target[:, asset_cfg.joint_ids]
+
+def relative_distance(env: ManagerBasedRLEnv, 
+                      source_asset_cfg: SceneEntityCfg,
+                      target_asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Compute the relative distance between two assets (the source is the robot)"""
+    source_asset: Articulation = env.scene[source_asset_cfg.name]
+    target_asset: RigidObject | Articulation = env.scene[target_asset_cfg.name]
+
+    source_pos = source_asset.data.root_pos_w
+    target_pos = target_asset.data.root_pos_w
+
+    return torch.norm(target_pos - source_pos, dim=1).unsqueeze(1)
