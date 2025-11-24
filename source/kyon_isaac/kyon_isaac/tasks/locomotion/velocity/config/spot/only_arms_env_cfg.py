@@ -62,7 +62,7 @@ class KyonEventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-2.0, 2.0), "y": (-2.0, 2.0), "z": (-0.1, 0.1)},
+            "pose_range": {"x": (-10.0, 10.0), "y": (-10.0, 10.0), "z": (-0.1, 0.1)},
             "velocity_range": {
                 "x": (-0.0, 0.0),
                 "y": (-0.0, 0.0),
@@ -198,7 +198,7 @@ class NavigationEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.box: RigidObjectCfg = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/box",  # Spawns a box in every environment
             spawn=sim_utils.CuboidCfg(
-                size=(0.1, 0.1, 0.1),  # Example size
+                size=(0.3, 0.3, 0.3),  # Example size
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)), # Green box
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(
                     solver_position_iteration_count=8,
@@ -214,8 +214,8 @@ class NavigationEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.front_up_camera = TiledCameraCfg(
             prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
             update_period=0.0333,
-            height=64,
-            width=64,
+            height=240,
+            width=384,
             data_types=["rgb", "distance_to_image_plane"],
             debug_vis=True,
             spawn=sim_utils.PinholeCameraCfg(

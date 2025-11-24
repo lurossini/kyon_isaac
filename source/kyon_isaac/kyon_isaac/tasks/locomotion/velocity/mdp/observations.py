@@ -59,4 +59,4 @@ def relative_distance(env: ManagerBasedRLEnv,
     source_pos = source_asset.data.root_pos_w
     target_pos = target_asset.data.root_pos_w
 
-    return torch.norm(target_pos - source_pos, dim=1).unsqueeze(1)
+    return target_pos - source_pos

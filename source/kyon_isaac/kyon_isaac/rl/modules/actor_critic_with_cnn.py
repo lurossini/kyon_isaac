@@ -55,11 +55,11 @@ class ActorCriticWithCNN(nn.Module):
         print(f"Actor MLP: {self.actor}")
 
         # critic
-        self.critic = MLP(num_critic_obs, 1, critic_hidden_dims, activation)
+        self.critic = MLP(num_critic_obs + latent_dim, 1, critic_hidden_dims, activation)
         # critic observation normalization
         self.critic_obs_normalization = critic_obs_normalization
         if critic_obs_normalization:
-            self.critic_obs_normalizer = EmpiricalNormalization(num_critic_obs)
+            self.critic_obs_normalizer = EmpiricalNormalization(num_critic_obs + latent_dim)
         else:
             self.critic_obs_normalizer = torch.nn.Identity()
         print(f"Critic MLP: {self.critic}")
@@ -116,12 +116,12 @@ class ActorCriticWithCNN(nn.Module):
     def act(self, obs: TensorDict, **kwargs: dict[str, Any]) -> torch.Tensor:
         # encoder pass
         obs_rgb = self.get_cnn_obs(obs)
-
-        # Compute mean
         self.latent = self.cnn(obs_rgb)
-
         
+        # get actor obs
         obs = self.get_actor_obs(obs)
+
+        # concatenate
         obs = torch.cat([obs, self.latent], dim=-1)
         obs = self.actor_obs_normalizer(obs)
         self.update_distribution(obs)
@@ -137,12 +137,28 @@ class ActorCriticWithCNN(nn.Module):
         return self.latent
     
     def act_inference(self, obs):
+        # encoder pass
+        obs_rgb = self.get_cnn_obs(obs)
+        self.latent = self.cnn(obs_rgb)
+        
+        # get actor obs
         obs = self.get_actor_obs(obs)
+
+        # concatenate
+        obs = torch.cat([obs, self.latent], dim=-1)
         obs = self.actor_obs_normalizer(obs)
         return self.actor(obs)
 
     def evaluate(self, obs, **kwargs):
+        # encoder pass
+        obs_rgb = self.get_cnn_obs(obs)
+
+        # Compute mean
+        self.latent = self.cnn(obs_rgb)
+
+        
         obs = self.get_critic_obs(obs)
+        obs = torch.cat([obs, self.latent], dim=-1)
         obs = self.critic_obs_normalizer(obs)
         return self.critic(obs)
 
@@ -170,6 +186,9 @@ class ActorCriticWithCNN(nn.Module):
             self.actor_obs_normalizer.update(actor_obs)
         if self.critic_obs_normalization:
             critic_obs = self.get_critic_obs(obs)
+            obs_rgb = self.get_cnn_obs(obs)
+            latent = self.cnn(obs_rgb)
+            critic_obs = torch.cat([critic_obs, latent], dim=-1)
             self.critic_obs_normalizer.update(critic_obs)
 
     def load_state_dict(self, state_dict, strict=True):
