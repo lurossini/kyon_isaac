@@ -96,7 +96,20 @@ def goal_reached(
     source_pos = source_asset.data.root_pos_w
     target_pos = target_asset.data.root_pos_w
 
-    return torch.where(torch.norm(target_pos - source_pos, dim=1) < threshold, 1, 0)
+    return torch.exp(-(torch.norm(target_pos - source_pos, dim=1) - threshold))
+
+def orient_towards_goal(
+    env: ManagerBasedRLEnv,
+    source_asset_cfg: SceneEntityCfg,
+    target_asset_cfg: SceneEntityCfg,
+) -> torch.Tensor:
+    source_asset: Articulation = env.scene[source_asset_cfg.name]
+    target_asset: RigidObject | Articulation = env.scene[target_asset_cfg.name]
+
+    source_pos = source_asset.data.root_pos_w
+    target_pos = target_asset.data.root_pos_w
+    relative_pos = target_pos - source_pos
+    return torch.square(relative_pos[:, 1])
 
 class GaitReward(ManagerTermBase):
     """Gait enforcing reward term for quadrupeds.

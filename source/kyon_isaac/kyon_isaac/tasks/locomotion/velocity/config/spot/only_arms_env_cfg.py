@@ -62,7 +62,7 @@ class KyonEventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-10.0, 10.0), "y": (-10.0, 10.0), "z": (-0.1, 0.1)},
+            "pose_range": {"x": (-5.0, 5.0), "y": (-5.0, 5.0), "z": (-0.1, 0.1)},
             "velocity_range": {
                 "x": (-0.0, 0.0),
                 "y": (-0.0, 0.0),
@@ -129,13 +129,13 @@ class KyonObservationsCfg:
                 "normalize": False}
         )
 
-        # front_up_cam_depth = ObsTerm(
-        #     func=mdp.image,
-        #     params={
-        #         "sensor_cfg": SceneEntityCfg("front_up_camera"), 
-        #         "data_type": "distance_to_image_plane", 
-        #         "normalize": True}
-        # )
+        front_up_cam_depth = ObsTerm(
+            func=mdp.image,
+            params={
+                "sensor_cfg": SceneEntityCfg("front_up_camera"), 
+                "data_type": "distance_to_image_plane", 
+                "normalize": True}
+        )
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -153,11 +153,19 @@ class KyonRewardsCfg():
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
     goal_reached = RewTerm(
         func=kyon_mdp.goal_reached,
-        weight=400.,
+        weight=1.,
         params={
             "source_asset_cfg": SceneEntityCfg("robot"),
             "target_asset_cfg": SceneEntityCfg("box"),
             "threshold": 0.7
+        }
+    )
+    ori_towards_goal = RewTerm(
+        func=kyon_mdp.orient_towards_goal,
+        weight=-1.,
+        params={
+            "source_asset_cfg": SceneEntityCfg("robot"),
+            "target_asset_cfg": SceneEntityCfg("box"),
         }
     )
 
@@ -195,6 +203,20 @@ class NavigationEnvCfg(ManagerBasedRLEnvCfg):
 
         self.scene.num_envs = 512
 
+        self.scene.terrain = TerrainImporterCfg(
+        prim_path="/World/ground",
+        terrain_type="plane",
+        collision_group=-1,
+        physics_material=sim_utils.RigidBodyMaterialCfg(
+            friction_combine_mode="average",
+            restitution_combine_mode="average",
+            static_friction=1.0,
+            dynamic_friction=1.0,
+            restitution=0.0,
+        ),
+        debug_vis=False,
+        )
+
         self.scene.box: RigidObjectCfg = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/box",  # Spawns a box in every environment
             spawn=sim_utils.CuboidCfg(
@@ -214,8 +236,8 @@ class NavigationEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.front_up_camera = TiledCameraCfg(
             prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
             update_period=0.0333,
-            height=240,
-            width=384,
+            height=120,
+            width=192,
             data_types=["rgb", "distance_to_image_plane"],
             debug_vis=True,
             spawn=sim_utils.PinholeCameraCfg(
