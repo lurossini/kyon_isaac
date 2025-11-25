@@ -29,7 +29,7 @@ class CNN(nn.Sequential):
 
         # add fully connected layer
         with torch.no_grad():
-            dummy_image = torch.zeros(1, 3, *resolution)
+            dummy_image = torch.zeros(1, in_channels, *resolution)
             x = dummy_image
             for layer in layers:
                 x = layer(x)
@@ -54,6 +54,8 @@ class CNN(nn.Sequential):
                 nn.init.constant_(layer.bias, 0.0)
 
     def forward(self, x):
+        if isinstance(x, TensorDict):
+            x = torch.cat([x["rgb"], x["distance_to_image_plane"]], dim=1)
         x = torch.permute(x, (0, 3, 1, 2))
         if x.dtype == torch.uint8:
             x = x.float()
