@@ -107,7 +107,7 @@ class KyonObservationsCfg:
 
         # `` observation terms (order preserved)
         distance_from_box = ObsTerm(
-            func=kyon_mdp.relative_distance,
+            func=kyon_mdp.relative_position,
             params={
                 "source_asset_cfg": SceneEntityCfg("robot"),
                 "target_asset_cfg": SceneEntityCfg("box")
@@ -150,22 +150,47 @@ class KyonObservationsCfg:
 class KyonRewardsCfg():
     """Reward terms for the MDP."""
 
-    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
-    goal_reached = RewTerm(
-        func=kyon_mdp.goal_reached,
+    # termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
+    # goal_reached = RewTerm(
+    #     func=kyon_mdp.goal_reached,
+    #     weight=5.,
+    #     params={
+    #         "source_asset_cfg": SceneEntityCfg("robot"),
+    #         "target_asset_cfg": SceneEntityCfg("box"),
+    #         "threshold": 0.7
+    #     }
+    # )
+    # ori_towards_goal = RewTerm(
+    #     func=kyon_mdp.orient_towards_goal,
+    #     weight=1.,
+    #     params={
+    #         "source_asset_cfg": SceneEntityCfg("robot"),
+    #         "target_asset_cfg": SceneEntityCfg("box"),
+    #     }
+    # )
+    hierarchy = RewTerm(
+        func=kyon_mdp.test_hierarchy,
         weight=1.,
         params={
-            "source_asset_cfg": SceneEntityCfg("robot"),
-            "target_asset_cfg": SceneEntityCfg("box"),
-            "threshold": 0.7
-        }
-    )
-    ori_towards_goal = RewTerm(
-        func=kyon_mdp.orient_towards_goal,
-        weight=-1.,
-        params={
-            "source_asset_cfg": SceneEntityCfg("robot"),
-            "target_asset_cfg": SceneEntityCfg("box"),
+            "rewards": {
+                "rew_1": RewTerm(
+                    func=kyon_mdp.orient_towards_goal,
+                    weight=1.,
+                    params={
+                        "source_asset_cfg": SceneEntityCfg("robot"),
+                        "target_asset_cfg": SceneEntityCfg("box"),
+                    }
+                ),
+                "rew2": RewTerm(
+                        func=kyon_mdp.goal_reached,
+                        weight=5.,
+                        params={
+                            "source_asset_cfg": SceneEntityCfg("robot"),
+                            "target_asset_cfg": SceneEntityCfg("box"),
+                            "threshold": 0.7
+                        }
+                ),  
+            }
         }
     )
 
@@ -173,10 +198,22 @@ class KyonRewardsCfg():
 class KyonTerminationsCfg:
     """Termination terms for the MDP."""
 
-    time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    time_out = DoneTerm(
+        func=mdp.time_out, 
+        time_out=True
+    )
     base_contact = DoneTerm(
         func=mdp.illegal_contact,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="pelvis"), "threshold": 1.0},
+    )
+    goal_reached = DoneTerm(
+        func=kyon_mdp.goal_reached_termination,
+        params={
+            "source_asset_cfg": SceneEntityCfg("robot"),
+            "target_asset_cfg": SceneEntityCfg("box"),
+            "threshold": 0.7,
+        },
+        time_out=True
     )
 
 @configclass
@@ -199,7 +236,7 @@ class NavigationEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = KYON_LOWER_BODY_ENV_CFG.sim.dt
         self.sim.render_interval = KYON_LOWER_BODY_ENV_CFG.decimation
         self.decimation = KYON_LOWER_BODY_ENV_CFG.decimation * 10
-        self.episode_length_s = 20.0
+        self.episode_length_s = 10.0
 
         self.scene.num_envs = 512
 

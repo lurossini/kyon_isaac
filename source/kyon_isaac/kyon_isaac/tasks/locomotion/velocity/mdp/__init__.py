@@ -8,3 +8,4 @@ from .observations import *
 from .mjx_rewards import *
 from .event import *
 from .action import *
+from .termination import *

@@ -3,10 +3,12 @@ from __future__ import annotations
 import torch
 from typing import TYPE_CHECKING
 
-from isaaclab.managers import SceneEntityCfg
+from isaaclab.managers import SceneEntityCfg, RewardTermCfg
 from isaaclab.sensors import ContactSensor
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import ManagerTermBase
+
+import isaaclab.utils.math as math
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -95,8 +97,9 @@ def goal_reached(
 
     source_pos = source_asset.data.root_pos_w
     target_pos = target_asset.data.root_pos_w
-
-    return torch.exp(-(torch.norm(target_pos - source_pos, dim=1) - threshold))
+    distance = torch.norm(target_pos - source_pos, dim=1)
+    sigma = 2.5
+    return torch.exp(-((distance - threshold)**2) / (2 * sigma**2))
 
 def orient_towards_goal(
     env: ManagerBasedRLEnv,
@@ -108,8 +111,32 @@ def orient_towards_goal(
 
     source_pos = source_asset.data.root_pos_w
     target_pos = target_asset.data.root_pos_w
-    relative_pos = target_pos - source_pos
-    return torch.square(relative_pos[:, 1])
+    relative_pos_w = target_pos - source_pos
+
+    q_source = source_asset.data.root_link_quat_w
+    relative_pos_s = math.quat_apply_inverse(q_source, relative_pos_w)
+    angle = torch.atan2(relative_pos_s[:, 1], relative_pos_s[:, 0])
+    
+    sigma = 0.3
+    return torch.exp(-(angle**2) / (2 * sigma**2))
+
+def test_hierarchy(
+    env: ManagerBasedRLEnv,
+    **rewards: RewardTermCfg
+) -> torch.Tensor:
+    
+    rewards = rewards["rewards"]
+    if len(rewards) < 2: 
+        raise RuntimeError("You should define a hierarchy with at least two rewards")
+    
+    old_rew = None
+    for rew_term in rewards.values():
+        if old_rew is not None:
+            rew = old_rew + rew_term.weight * old_rew * rew_term.func(env, **rew_term.params) 
+        else:
+            old_rew = rew_term.func(env, **rew_term.params)
+    
+    return rew
 
 class GaitReward(ManagerTermBase):
     """Gait enforcing reward term for quadrupeds.

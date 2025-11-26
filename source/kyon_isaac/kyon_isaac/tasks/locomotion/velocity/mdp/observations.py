@@ -18,6 +18,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab_tasks.manager_based.locomotion.velocity import mdp
+import isaaclab.utils.math as math
 
 # from kyon_isaac.sensors import ActionHistorySensor
 
@@ -49,7 +50,7 @@ def joint_pos_error(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEnt
     asset: Articulation = env.scene[asset_cfg.name]
     return asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.joint_pos_target[:, asset_cfg.joint_ids]
 
-def relative_distance(env: ManagerBasedRLEnv, 
+def relative_position(env: ManagerBasedRLEnv, 
                       source_asset_cfg: SceneEntityCfg,
                       target_asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Compute the relative distance between two assets (the source is the robot)"""
@@ -58,5 +59,26 @@ def relative_distance(env: ManagerBasedRLEnv,
 
     source_pos = source_asset.data.root_pos_w
     target_pos = target_asset.data.root_pos_w
+    relative_pos_w = target_pos - source_pos
 
-    return target_pos - source_pos
+    q_source = source_asset.data.root_link_quat_w
+    relative_pos_s = math.quat_apply_inverse(q_source, relative_pos_w)
+
+    return relative_pos_s
+
+def heading_direction(env: ManagerBasedRLEnv, 
+                      source_asset_cfg: SceneEntityCfg,
+                      target_asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Compute the relative distance between two assets (the source is the robot)"""
+    source_asset: Articulation = env.scene[source_asset_cfg.name]
+    target_asset: RigidObject | Articulation = env.scene[target_asset_cfg.name]
+
+    source_pos = source_asset.data.root_pos_w
+    target_pos = target_asset.data.root_pos_w
+    relative_pos_w = target_pos - source_pos
+
+    q_source = source_asset.data.root_link_quat_w
+    relative_pos_s = math.quat_apply_inverse(q_source, relative_pos_w)
+    angle = torch.atan2(relative_pos_s[:, 1], relative_pos_s[:, 0])
+
+    return angle
