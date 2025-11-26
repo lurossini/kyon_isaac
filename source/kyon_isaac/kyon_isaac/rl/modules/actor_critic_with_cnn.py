@@ -21,6 +21,7 @@ class ActorCriticWithCNN(nn.Module):
         actor_hidden_dims: tuple[int] | list[int] = [256, 256, 256],
         critic_hidden_dims: tuple[int] | list[int] = [256, 256, 256],
         cnn_hidden_dims: tuple[int] | list[int] = [8, 16],
+        in_channels = 3,
         latent_dim = 32,
         activation: str = "elu",
         init_noise_std: float = 1.0,
@@ -65,7 +66,7 @@ class ActorCriticWithCNN(nn.Module):
         print(f"Critic MLP: {self.critic}")
 
         # encoder
-        self.cnn = CNN(resolution=resolution, in_channels=3, latent_dim=latent_dim, hidden_channel_size=cnn_hidden_dims)
+        self.cnn = CNN(resolution=resolution, in_channels=in_channels, latent_dim=latent_dim, hidden_channel_size=cnn_hidden_dims)
         print(f"CNN: {self.cnn}")
 
         # Action noise

@@ -5,6 +5,8 @@
 
 from isaaclab.utils import configclass
 
+from dataclasses import MISSING
+
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
 from kyon_isaac.rl.modules import ActorCriticWithCNN
 
@@ -43,21 +45,27 @@ from rsl_rl.runners import on_policy_runner
 on_policy_runner.ActorCriticWithCNN = ActorCriticWithCNN
 
 @configclass
+class VisionRslRlPpoActorCriticCfg(RslRlPpoActorCriticCfg):
+    resolution: tuple[int] = MISSING
+    in_channels: int = MISSING
+
+@configclass
 class KyonVisionPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 8
     max_iterations = 1500
     save_interval = 50
     experiment_name = "kyon_navigation"
     store_code_state = False
-    obs_groups = {"policy": ["policy"], "critic": ["critic"], "rgb": ["rgb"]}
-    policy = RslRlPpoActorCriticCfg(
+    obs_groups = {"policy": ["critic"], "critic": ["critic"], "rgb": ["rgb"]}
+    policy = VisionRslRlPpoActorCriticCfg(
         class_name="ActorCriticWithCNN",
         init_noise_std=0.5,
-        actor_obs_normalization=True, 
-        critic_obs_normalization=True,
+        actor_obs_normalization=False, 
+        critic_obs_normalization=False,
         actor_hidden_dims=[128, 128],
         critic_hidden_dims=[128, 128],
-        resolution=(384, 240),   # resolution zedx mini 1920 x 1200
+        in_channels=4,
+        resolution=(192, 120),   # resolution zedx mini 1920 x 1200
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
