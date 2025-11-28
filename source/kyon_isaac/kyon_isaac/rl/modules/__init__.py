@@ -1,1 +1,2 @@
 from .actor_critic_with_cnn import ActorCriticWithCNN
+from .student_teacher_with_cnn import StudentTeacherWithCNN

@@ -62,7 +62,7 @@ class KyonEventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-5.0, 5.0), "y": (-5.0, 5.0), "z": (-0.1, 0.1)},
+            "pose_range": {"x": (-10.0, 10.0), "y": (-10.0, 10.0), "z": (-0.1, 0.1)},
             "velocity_range": {
                 "x": (-0.0, 0.0),
                 "y": (-0.0, 0.0),
@@ -150,7 +150,7 @@ class KyonObservationsCfg:
 class KyonRewardsCfg():
     """Reward terms for the MDP."""
 
-    # termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
+    termination_reward = RewTerm(func=mdp.is_terminated, weight=150.0)
     # goal_reached = RewTerm(
     #     func=kyon_mdp.goal_reached,
     #     weight=5.,
@@ -202,10 +202,10 @@ class KyonTerminationsCfg:
         func=mdp.time_out, 
         time_out=True
     )
-    base_contact = DoneTerm(
-        func=mdp.illegal_contact,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="pelvis"), "threshold": 1.0},
-    )
+    # base_contact = DoneTerm(
+    #     func=mdp.illegal_contact,
+    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="pelvis"), "threshold": 1.0},
+    # )
     goal_reached = DoneTerm(
         func=kyon_mdp.goal_reached_termination,
         params={
@@ -213,7 +213,6 @@ class KyonTerminationsCfg:
             "target_asset_cfg": SceneEntityCfg("box"),
             "threshold": 0.7,
         },
-        time_out=True
     )
 
 @configclass
