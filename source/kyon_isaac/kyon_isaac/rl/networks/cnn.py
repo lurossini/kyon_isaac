@@ -11,7 +11,7 @@ class CNN(nn.Sequential):
                  latent_dim: int,
                  hidden_channel_size: tuple[int] | list[int] = [8, 16],
                  kernel_size: tuple[int] | list[int] = [3, 3],
-                 pool_kernel_size: tuple[int] | list[int] = [2, 2],
+                 stride: tuple[int] | list[int] = [2, 2],
                  activation: str = "elu"):
         
         assert len(hidden_channel_size) == len(kernel_size), "In CNN module initialization: kernel_size and hidden_channel_size vectors have different lengths"
@@ -19,14 +19,14 @@ class CNN(nn.Sequential):
         layers = []
 
         # add first convolutional layer
-        layers.append(nn.Conv2d(in_channels=in_channels, out_channels=hidden_channel_size[0], kernel_size=kernel_size[0], stride=1, padding=1))
-        layers.append(nn.MaxPool2d(kernel_size=pool_kernel_size[0], stride=2))
+        layers.append(nn.Conv2d(in_channels=in_channels, out_channels=hidden_channel_size[0], kernel_size=kernel_size[0], stride=stride[0], padding=1))
         layers.append(resolve_nn_activation(activation))
 
         for layer_index in range(len(hidden_channel_size) - 1):
-            layers.append(nn.Conv2d(in_channels=hidden_channel_size[layer_index], out_channels=hidden_channel_size[layer_index+1], kernel_size=kernel_size[layer_index+1], stride=1, padding=1))
-            layers.append(nn.MaxPool2d(kernel_size=pool_kernel_size[layer_index+1], stride=2))
+            layers.append(nn.Conv2d(in_channels=hidden_channel_size[layer_index], out_channels=hidden_channel_size[layer_index+1], kernel_size=kernel_size[layer_index+1], stride=stride[layer_index+1], padding=1))
             layers.append(resolve_nn_activation(activation))
+        
+        # layers.append(nn.AdaptiveAvgPool2d((1, 1)))
 
         # add fully connected layer
         with torch.no_grad():
@@ -35,9 +35,13 @@ class CNN(nn.Sequential):
             for layer in layers:
                 x = layer(x)
             image_feature_size = x.view(1, -1).shape[1]
-        layers.append(nn.Linear(in_features=image_feature_size, out_features=latent_dim)) 
-        layers.append(nn.LayerNorm(latent_dim))
-
+        layers.append(nn.Linear(in_features=image_feature_size, out_features=128)) 
+        layers.append(resolve_nn_activation(activation))
+        layers.append(nn.Linear(in_features=128, out_features=64))
+        layers.append(resolve_nn_activation(activation)) 
+        layers.append(nn.Linear(in_features=64, out_features=latent_dim)) 
+        layers.append(resolve_nn_activation(activation))
+        
         self._initialize_weights()
 
         for idx, layer in enumerate(layers):
@@ -47,12 +51,10 @@ class CNN(nn.Sequential):
         for layer in self:
             if isinstance(layer, nn.Conv2d):
                 nn.init.kaiming_normal_(layer.weight, mode="fan_out", nonlinearity="relu")
+                torch.nn.init.zeros_(layer.bias)
             elif isinstance(layer, nn.Linear):
                 nn.init.kaiming_normal_(layer.weight, mode="fan_out", nonlinearity="tanh")
                 nn.init.constant_(layer.bias, 0)
-            elif isinstance(layer, nn.LayerNorm):
-                nn.init.constant_(layer.weight, 1.0)
-                nn.init.constant_(layer.bias, 0.0)
 
     def forward(self, x):
         if isinstance(x, TensorDict):
@@ -64,4 +66,5 @@ class CNN(nn.Sequential):
             if isinstance(layer, nn.Linear):
                 x = x.reshape(x.size(0), -1)
             x = layer(x)
+        x[:, 3] = torch.sigmoid(x[:, 3])
         return x

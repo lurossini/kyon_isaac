@@ -10,6 +10,7 @@ from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
+from isaaclab.managers import ActionTermCfg as ActTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.assets import RigidObjectCfg
@@ -26,6 +27,9 @@ from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import Lo
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
 from kyon_isaac.tasks.locomotion.velocity.config.spot.flat_env_cfg import KyonFlatEnvCfg
 # from kyon_isaac.sensors import ActionHistorySensorCfg
+
+import torch
+from isaaclab.assets import Articulation
 
 import kyon_isaac
 from pathlib import Path
@@ -62,7 +66,8 @@ class KyonEventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-10.0, 10.0), "y": (-10.0, 10.0), "z": (-0.1, 0.1)},
+            "pose_range": {"x": (-5.0, 5.0), "y": (-5.0, 5.0), "z": (-0.1, 0.1)},
+            # "pose_range": {"x": (2., 2.), "y": (-1.0, 1.0), "z": (-0.1, 0.1)},
             "velocity_range": {
                 "x": (-0.0, 0.0),
                 "y": (-0.0, 0.0),
@@ -86,6 +91,8 @@ class KyonActionsCfg:
         low_level_actions=KYON_LOWER_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_LOWER_BODY_ENV_CFG.observations.policy,
     )
+
+    # zero_action = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0., use_default_offset=True)
 
 @configclass
 class KyonObservationsCfg:
@@ -111,6 +118,13 @@ class KyonObservationsCfg:
             params={
                 "source_asset_cfg": SceneEntityCfg("robot"),
                 "target_asset_cfg": SceneEntityCfg("box")
+            }
+        )
+        is_box_in_fov = ObsTerm(
+            func=kyon_mdp.asset_in_fov,
+            params={
+                "camera_cfg": SceneEntityCfg("front_up_camera"),
+                "asset_cfg": SceneEntityCfg("box")
             }
         )
         def __post_init__(self):
@@ -150,7 +164,7 @@ class KyonObservationsCfg:
 class KyonRewardsCfg():
     """Reward terms for the MDP."""
 
-    termination_reward = RewTerm(func=mdp.is_terminated, weight=150.0)
+    # termination_reward = RewTerm(func=mdp.is_terminated, weight=150.0)
     # goal_reached = RewTerm(
     #     func=kyon_mdp.goal_reached,
     #     weight=5.,
@@ -168,31 +182,31 @@ class KyonRewardsCfg():
     #         "target_asset_cfg": SceneEntityCfg("box"),
     #     }
     # )
-    hierarchy = RewTerm(
-        func=kyon_mdp.test_hierarchy,
-        weight=1.,
-        params={
-            "rewards": {
-                "rew_1": RewTerm(
-                    func=kyon_mdp.orient_towards_goal,
-                    weight=1.,
-                    params={
-                        "source_asset_cfg": SceneEntityCfg("robot"),
-                        "target_asset_cfg": SceneEntityCfg("box"),
-                    }
-                ),
-                "rew2": RewTerm(
-                        func=kyon_mdp.goal_reached,
-                        weight=5.,
-                        params={
-                            "source_asset_cfg": SceneEntityCfg("robot"),
-                            "target_asset_cfg": SceneEntityCfg("box"),
-                            "threshold": 0.7
-                        }
-                ),  
-            }
-        }
-    )
+    # hierarchy = RewTerm(
+    #     func=kyon_mdp.test_hierarchy,
+    #     weight=1.,
+    #     params={
+    #         "rewards": {
+    #             "rew_1": RewTerm(
+    #                 func=kyon_mdp.orient_towards_goal,
+    #                 weight=1.,
+    #                 params={
+    #                     "source_asset_cfg": SceneEntityCfg("robot"),
+    #                     "target_asset_cfg": SceneEntityCfg("box"),
+    #                 }
+    #             ),
+    #             "rew2": RewTerm(
+    #                     func=kyon_mdp.goal_reached,
+    #                     weight=5.,
+    #                     params={
+    #                         "source_asset_cfg": SceneEntityCfg("robot"),
+    #                         "target_asset_cfg": SceneEntityCfg("box"),
+    #                         "threshold": 0.7
+    #                     }
+    #             ),  
+    #         }
+    #     }
+    # )
 
 @configclass
 class KyonTerminationsCfg:
@@ -235,7 +249,7 @@ class NavigationEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = KYON_LOWER_BODY_ENV_CFG.sim.dt
         self.sim.render_interval = KYON_LOWER_BODY_ENV_CFG.decimation
         self.decimation = KYON_LOWER_BODY_ENV_CFG.decimation * 10
-        self.episode_length_s = 10.0
+        self.episode_length_s = 1.0
 
         self.scene.num_envs = 512
 
@@ -256,7 +270,7 @@ class NavigationEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.box: RigidObjectCfg = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/box",  # Spawns a box in every environment
             spawn=sim_utils.CuboidCfg(
-                size=(0.3, 0.3, 0.3),  # Example size
+                size=(0.8, 0.8, 0.8),  # Example size
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)), # Green box
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(
                     solver_position_iteration_count=8,
@@ -280,6 +294,7 @@ class NavigationEnvCfg(ManagerBasedRLEnvCfg):
                 focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
             ),
             offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+            depth_clipping_behavior="max",
         )
         self.image_obs_list = ["front_up_camera"]
 

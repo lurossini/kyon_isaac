@@ -21,12 +21,13 @@ class ActorCriticWithCNN(nn.Module):
         actor_hidden_dims: tuple[int] | list[int] = [256, 256, 256],
         critic_hidden_dims: tuple[int] | list[int] = [256, 256, 256],
         cnn_hidden_dims: tuple[int] | list[int] = [8, 16],
+        kernel_size=[3, 3],
+        stride=[2, 2],
         in_channels = 3,
         latent_dim = 32,
         activation: str = "elu",
         init_noise_std: float = 1.0,
         noise_std_type: str = "scalar",
-        **kwargs: dict[str, Any]
     ) -> None:
         super().__init__()
 
@@ -66,7 +67,7 @@ class ActorCriticWithCNN(nn.Module):
         print(f"Critic MLP: {self.critic}")
 
         # encoder
-        self.cnn = CNN(resolution=resolution, in_channels=in_channels, latent_dim=latent_dim, hidden_channel_size=cnn_hidden_dims)
+        self.cnn = CNN(resolution=resolution, in_channels=in_channels, latent_dim=latent_dim, hidden_channel_size=cnn_hidden_dims, kernel_size=kernel_size, stride=stride)
         print(f"CNN: {self.cnn}")
 
         # Action noise
@@ -134,7 +135,9 @@ class ActorCriticWithCNN(nn.Module):
             obs_list.append(obs[obs_group])
         return torch.cat(obs_list, dim=-1)
     
-    def get_latent_vector(self):
+    def get_latent(self, obs):
+        obs_rgb = self.get_cnn_obs(obs)
+        self.latent = self.cnn(obs_rgb)
         return self.latent
     
     def act_inference(self, obs):

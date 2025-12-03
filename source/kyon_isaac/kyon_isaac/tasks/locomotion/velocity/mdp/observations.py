@@ -15,10 +15,12 @@ import torch
 from typing import TYPE_CHECKING
 
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.sensors import ContactSensor
+from isaaclab.sensors import ContactSensor, TiledCamera, TiledCameraCfg
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab_tasks.manager_based.locomotion.velocity import mdp
 import isaaclab.utils.math as math
+
+import numpy as np
 
 # from kyon_isaac.sensors import ActionHistorySensor
 
@@ -64,6 +66,8 @@ def relative_position(env: ManagerBasedRLEnv,
     q_source = source_asset.data.root_link_quat_w
     relative_pos_s = math.quat_apply_inverse(q_source, relative_pos_w)
 
+    # print(f'distance: {relative_pos_s.tolist()}')
+
     return relative_pos_s
 
 def heading_direction(env: ManagerBasedRLEnv, 
@@ -82,3 +86,34 @@ def heading_direction(env: ManagerBasedRLEnv,
     angle = torch.atan2(relative_pos_s[:, 1], relative_pos_s[:, 0])
 
     return angle
+def asset_in_fov(env: ManagerBasedRLEnv,
+                 camera_cfg: TiledCameraCfg,
+                 asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    camera: TiledCamera = env.scene[camera_cfg.name]
+    asset: RigidObject = env.scene[asset_cfg.name]
+    robot: Articulation = env.scene["robot"]
+
+    asset_pos = asset.data.root_pos_w
+    camera_pos = camera.data.pos_w
+    relative_pos_w = asset_pos - camera_pos
+    q_base = robot.data.root_quat_w
+    q_camera = camera.data.quat_w_world
+    relative_pos_b = math.quat_apply_inverse(q_base, relative_pos_w)
+    relative_pos_c = math.quat_apply_inverse(q_camera, relative_pos_b)
+    distance = torch.norm(relative_pos_c, dim=1)
+
+    hfov = np.arctan(camera.cfg.spawn.horizontal_aperture / (2 * camera.cfg.spawn.focal_length))
+    vfov = np.arctan(camera.cfg.spawn.vertical_aperture / (2 * camera.cfg.spawn.focal_length))
+
+    yaw = torch.abs(torch.atan2(relative_pos_c[:, 1], relative_pos_c[:, 0]))
+    pitch = torch.abs(torch.atan2(relative_pos_c[:, 2], relative_pos_c[:, 0]))
+    # yaw = torch.atan(relative_pos_c[:, 1] / relative_pos_c[:, 0])
+    # pitch = torch.atan2(relative_pos_c[:, 2], relative_pos_c[:, 0])
+    check = torch.logical_and(yaw < hfov, pitch < vfov).unsqueeze(1)
+    # print(f'asset_pos: {asset_pos.tolist()}')
+    # print(f'camera_pos: {camera_pos.tolist()}')
+    # print(f'relative_pos_c: {relative_pos_c}')
+    # print(f'yaw: {yaw.tolist()} - pitch: {pitch.tolist()}')
+    # print(f'hfov: {hfov} - vfov: {vfov}')
+    # print(check)
+    return check.int()
