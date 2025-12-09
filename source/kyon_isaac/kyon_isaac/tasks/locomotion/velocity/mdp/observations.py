@@ -108,4 +108,5 @@ def asset_in_fov(env: ManagerBasedRLEnv,
     yaw = torch.abs(torch.atan2(relative_pos_c[:, 1], relative_pos_c[:, 0]))
     pitch = torch.abs(torch.atan2(relative_pos_c[:, 2], relative_pos_c[:, 0]))
     check = torch.logical_and(yaw < hfov, pitch < vfov).unsqueeze(1)
+    print(check.float())
     return check.float()

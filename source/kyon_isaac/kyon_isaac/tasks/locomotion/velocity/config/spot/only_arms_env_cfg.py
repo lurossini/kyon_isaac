@@ -67,7 +67,7 @@ class KyonEventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-5.0, 5.0), "y": (-5.0, 5.0), "z": (-0.1, 0.1)},
+            "pose_range": {"x": (2.0, 2.0), "y": (-0.1, 0.1), "z": (-0.1, 0.1)},
             # "pose_range": {"x": (2., 2.), "y": (-1.0, 1.0), "z": (-0.1, 0.1)},
             "velocity_range": {
                 "x": (-0.0, 0.0),

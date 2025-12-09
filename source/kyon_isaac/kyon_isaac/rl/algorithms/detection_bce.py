@@ -134,7 +134,7 @@ class DetectionBCE:
         loss_fn_dict = {
             "mse": nn.functional.mse_loss,
             "huber": nn.functional.huber_loss,
-            "bce": nn.functional.binary_cross_entropy,
+            "bce": nn.functional.binary_cross_entropy_with_logits,
         }
         if loss_type in loss_fn_dict:
             self.loss_fn = loss_fn_dict[loss_type]
