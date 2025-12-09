@@ -71,7 +71,7 @@ class DistillationWithCNN:
         }
         if loss_type in loss_fn_dict:
             self.loss_fn = loss_fn_dict[loss_type]
-            self.latent_loss_fn = loss_fn_dict[loss_type]
+            self.latent_loss_fn = loss_fn_dict["huber"]
         else:
             raise ValueError(f"Unknown loss type: {loss_type}. Supported types are: {list(loss_fn_dict.keys())}")
 

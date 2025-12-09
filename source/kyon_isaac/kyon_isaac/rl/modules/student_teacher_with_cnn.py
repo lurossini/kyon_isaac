@@ -31,6 +31,8 @@ class StudentTeacherWithCNN(nn.Module):
         student_hidden_dims: tuple[int] | list[int] = [256, 256, 256],
         teacher_hidden_dims: tuple[int] | list[int] = [256, 256, 256],
         cnn_hidden_dims: tuple[int] | list[int] = [8, 16],
+        kernel_size: tuple[int] | list[int] = [3, 3],
+        pool_kernel_size: tuple[int] | list[int] = [2, 2],
         latent_dim = 3,
         activation: str = "elu",
         init_noise_std: float = 0.1,
@@ -62,7 +64,7 @@ class StudentTeacherWithCNN(nn.Module):
             num_rgb_obs += obs[obs_group].shape[-1]
 
         # Student
-        self.student_cnn = CNN(resolution=resolution, in_channels=in_channels, latent_dim=latent_dim, hidden_channel_size=cnn_hidden_dims)
+        self.student_cnn = CNN(resolution=resolution, in_channels=in_channels, latent_dim=latent_dim, hidden_channel_size=cnn_hidden_dims, kernel_size=kernel_size, pool_kernel_size=pool_kernel_size)
         print(f"Student CNN: {self.student_cnn}")
         self.student = MLP(num_student_obs + latent_dim, num_actions, student_hidden_dims, activation)
         print(f"Student MLP: {self.student}")

@@ -105,7 +105,7 @@ class DetectionBCE:
         # PPO components
         self.policy = policy
         self.policy.to(self.device)
-
+        
         # Create optimizer
         self.optimizer = optim.Adam(self.policy.parameters(), lr=learning_rate)
 

@@ -26,8 +26,8 @@ services:
       - type: bind
         source: ../
         target: /workspace/kyon_isaac
-    devices:
-      - "/dev/input:/dev/input"
+          #devices:
+          #- "/dev/input:/dev/input"
     network_mode: host
     restart: always
     environment: *default-isaac-lab-template-environment
