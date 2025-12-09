@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor, TiledCamera, TiledCameraCfg
-from isaaclab.assets import Articulation, RigidObject
+from isaaclab.assets import Articulation, RigidObject, RigidObjectCfg
 from isaaclab_tasks.manager_based.locomotion.velocity import mdp
 import isaaclab.utils.math as math
 
@@ -86,27 +86,125 @@ def heading_direction(env: ManagerBasedRLEnv,
     angle = torch.atan2(relative_pos_s[:, 1], relative_pos_s[:, 0])
 
     return angle
-def asset_in_fov(env: ManagerBasedRLEnv,
-                 camera_cfg: TiledCameraCfg,
-                 asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    camera: TiledCamera = env.scene[camera_cfg.name]
-    asset: RigidObject = env.scene[asset_cfg.name]
-    robot: Articulation = env.scene["robot"]
 
-    asset_pos = asset.data.root_pos_w
-    camera_pos = camera.data.pos_w
-    relative_pos_w = asset_pos - camera_pos
-    q_base = robot.data.root_quat_w
-    q_camera = camera.data.quat_w_world
-    relative_pos_b = math.quat_apply_inverse(q_base, relative_pos_w)
-    relative_pos_c = math.quat_apply_inverse(q_camera, relative_pos_b)
-    distance = torch.norm(relative_pos_c, dim=1)
+# def asset_in_fov(env: ManagerBasedRLEnv,
+#                  camera_cfg: TiledCameraCfg,
+#                  asset_cfg: SceneEntityCfg) -> torch.Tensor:
+#     camera: TiledCamera = env.scene[camera_cfg.name]
+#     asset: RigidObject = env.scene[asset_cfg.name]
+#     robot: Articulation = env.scene["robot"]
 
-    hfov = np.arctan(camera.cfg.spawn.horizontal_aperture / (2 * camera.cfg.spawn.focal_length))
-    vfov = np.arctan(camera.cfg.spawn.vertical_aperture / (2 * camera.cfg.spawn.focal_length))
+#     asset_pos = asset.data.root_pos_w
+#     camera_pos = camera.data.pos_w
+#     relative_pos_w = asset_pos - camera_pos
+#     q_base = robot.data.root_quat_w
+#     q_camera = camera.data.quat_w_world
+#     relative_pos_b = math.quat_apply_inverse(q_base, relative_pos_w)
+#     relative_pos_c = math.quat_apply_inverse(q_camera, relative_pos_b)
+#     distance = torch.norm(relative_pos_c, dim=1)
 
-    yaw = torch.abs(torch.atan2(relative_pos_c[:, 1], relative_pos_c[:, 0]))
-    pitch = torch.abs(torch.atan2(relative_pos_c[:, 2], relative_pos_c[:, 0]))
-    check = torch.logical_and(yaw < hfov, pitch < vfov).unsqueeze(1)
-    print(check.float())
-    return check.float()
+#     hfov = np.arctan(camera.cfg.spawn.horizontal_aperture / (2 * camera.cfg.spawn.focal_length))
+#     vfov = np.arctan(camera.cfg.spawn.vertical_aperture / (2 * camera.cfg.spawn.focal_length))
+
+#     if isinstance(asset, RigidObject):
+#         w_min, w_max, corners_w = get_asset_world_bbox(asset)
+#     else:
+#         w_min, w_max, corners_w = get_asset_world_aabb(asset)
+
+#     # yaw = torch.abs(torch.atan2(relative_pos_c[:, 1], relative_pos_c[:, 0]))
+#     # pitch = torch.abs(torch.atan2(relative_pos_c[:, 2], relative_pos_c[:, 0]))
+#     yaw = torch.atan2(corners_w[..., 1], corners_w[..., 0])
+#     pitch = torch.atan2(corners_w[..., 2], corners_w[..., 0])
+#     # check = torch.logical_and(yaw < hfov, pitch < vfov).unsqueeze(1)
+#     in_fov = ((yaw.abs() < hfov) & (pitch.abs() < vfov)).any(dim=1)
+#     print(in_fov.float())
+#     return in_fov.float()
+
+def asset_in_fov(env, camera_name: str, asset_name: str) -> torch.Tensor:
+    """
+    Check if any part of a RigidObject asset is inside the camera FOV.
+
+    Returns:
+        torch.Tensor: [num_envs, 1] float tensor where 1.0 = any corner in FOV
+    """
+
+    # ----------------------------------------------------------------------
+    # 1. Runtime objects
+    # ----------------------------------------------------------------------
+    camera = env.scene[camera_name]   # TiledCamera
+    asset  = env.scene[asset_name]    # RigidObject
+    robot  = env.scene["robot"]       # Articulation / robot base
+
+    # ----------------------------------------------------------------------
+    # 2. Configuration objects
+    # ----------------------------------------------------------------------
+    asset_cfg  = getattr(env.scene.cfg, asset_name)   # RigidObjectCfg
+    camera_cfg = getattr(env.scene.cfg, camera_name)  # TiledCameraCfg
+
+    # ----------------------------------------------------------------------
+    # 3. Local bounding box corners (Cuboid only)
+    # ----------------------------------------------------------------------
+    size = torch.tensor(asset_cfg.spawn.size, device=env.device, dtype=torch.float32)
+    half_extents = 0.5 * size
+
+    signs = torch.tensor([
+        [-1, -1, -1],
+        [-1, -1,  1],
+        [-1,  1, -1],
+        [-1,  1,  1],
+        [ 1, -1, -1],
+        [ 1, -1,  1],
+        [ 1,  1, -1],
+        [ 1,  1,  1],
+    ], device=env.device, dtype=torch.float32)
+
+    corners_local = signs * half_extents   # [8, 3]
+
+    # ----------------------------------------------------------------------
+    # 4. Transform corners to world space
+    # ----------------------------------------------------------------------
+    corners_local_exp = corners_local.unsqueeze(0)   # [1, 8, 3]
+    rotated = math.quat_apply(asset.data.root_quat_w.unsqueeze(1), corners_local_exp)  # [num_envs, 8, 3]
+    corners_world = rotated + asset.data.root_pos_w.unsqueeze(1)                        # [num_envs, 8, 3]
+
+    # ----------------------------------------------------------------------
+    # 5. Transform from world → robot base → camera frame
+    # ----------------------------------------------------------------------
+    # world → robot base
+    corners_base = math.quat_apply_inverse(
+        robot.data.root_quat_w.unsqueeze(1),
+        corners_world - robot.data.root_pos_w.unsqueeze(1)
+    )
+
+    # robot base → camera frame
+    corners_cam = math.quat_apply_inverse(
+        camera.data.quat_w_world.unsqueeze(1),
+        corners_base
+    )
+
+    # ----------------------------------------------------------------------
+    # 6. Compute camera FOV
+    # ----------------------------------------------------------------------
+    hfov = camera.cfg.spawn.horizontal_aperture / (2 * camera.cfg.spawn.focal_length)
+    vfov = camera.cfg.spawn.vertical_aperture / (2 * camera.cfg.spawn.focal_length)
+
+    hfov = torch.tensor(hfov, device=env.device, dtype=torch.float32)
+    vfov = torch.tensor(vfov, device=env.device, dtype=torch.float32)
+
+    # ----------------------------------------------------------------------
+    # 7. Check yaw/pitch for each corner
+    # ----------------------------------------------------------------------
+    x = corners_cam[..., 0]
+    y = corners_cam[..., 1]
+    z = corners_cam[..., 2]
+
+    yaw   = torch.abs(torch.atan2(y, x))
+    pitch = torch.abs(torch.atan2(z, x))
+
+    in_fov_per_corner = (yaw < hfov) & (pitch < vfov)
+
+    # True if any corner is inside FOV
+    is_any_corner_in_fov = torch.any(in_fov_per_corner, dim=1)
+    print(is_any_corner_in_fov.unsqueeze(1).float())
+    return is_any_corner_in_fov.unsqueeze(1).float()   # [num_envs, 1]
+

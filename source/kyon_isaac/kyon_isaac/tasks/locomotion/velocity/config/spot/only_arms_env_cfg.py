@@ -124,8 +124,8 @@ class KyonObservationsCfg:
         is_box_in_fov = ObsTerm(
             func=kyon_mdp.asset_in_fov,
             params={
-                "camera_cfg": SceneEntityCfg("front_up_camera"),
-                "asset_cfg": SceneEntityCfg("box")
+                "camera_name": "front_up_camera",
+                "asset_name": "box"
             }
         )
         def __post_init__(self):
