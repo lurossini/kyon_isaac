@@ -251,9 +251,11 @@ class DetectionBCE:
                                               weight=self.policy.get_critic_obs(obs_batch)[:, 6].unsqueeze(1).repeat(1, 3))
 
             confidence = latent[:, 3]
-            confidence_loss = self.confidence_loss_fn(confidence, self.policy.get_critic_obs(obs_batch)[:, 6])
-            
-            loss = self.latent_coef * latent_loss + confidence_loss 
+            confidence_loss = self.confidence_loss_fn(confidence, 
+                                                      self.policy.get_critic_obs(obs_batch)[:, 6])
+                        
+            # loss = self.latent_coef * latent_loss + confidence_loss 
+            loss = confidence_loss 
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -284,7 +286,7 @@ class DetectionBCE:
 
         # Construct the loss dictionary
         loss_dict = {
-            "latent": mean_latent_loss,
+            # "latent": mean_latent_loss,
             "confidence": mean_confidence_loss,
         }
 

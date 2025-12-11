@@ -99,6 +99,15 @@ import kyon_isaac.tasks  # noqa: F401
 if args_cli.interactive:
     rx_msg = joy_msg_pb2.JoyMsg()
 
+import zmq
+import cv2
+
+context = zmq.Context()
+socket_rgb = context.socket(zmq.PUSH)
+socket_rgb.connect("tcp://localhost:5555")
+socket_depth = context.socket(zmq.PUSH)
+socket_depth.connect("tcp://localhost:5556")
+
 @hydra_task_config(args_cli.task, args_cli.agent)
 def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
     """Play with RSL-RL agent."""
@@ -203,8 +212,14 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
+            actions = torch.zeros_like(actions)
             # env stepping
             obs, _, _, _ = env.step(actions)
+            frame = obs['rgb'][0, :, :, :3]
+            frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
+            ret, jpg = cv2.imencode(".jpg", frame_bgr)
+            socket_rgb.send(jpg.tobytes())
+            print(f'critic: {obs["critic"][0, 6]}')
             if args_cli.interactive:
                     while True:
                         try:
@@ -213,7 +228,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                             ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
                         except zmq.Again:
                             break     
-                    obs['policy'][0, 6:9] = torch.Tensor(ref)   
+                    obs['critic'][0, 6:9] = torch.Tensor(ref)   
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video

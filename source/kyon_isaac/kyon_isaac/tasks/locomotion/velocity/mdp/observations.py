@@ -66,7 +66,7 @@ def relative_position(env: ManagerBasedRLEnv,
     q_source = source_asset.data.root_link_quat_w
     relative_pos_s = math.quat_apply_inverse(q_source, relative_pos_w)
 
-    # print(f'distance: {relative_pos_s.tolist()}')
+    # print(f'from obs: {relative_pos_s.tolist()}')
 
     return relative_pos_s
 
@@ -123,27 +123,27 @@ def heading_direction(env: ManagerBasedRLEnv,
 def asset_in_fov(env, camera_name: str, asset_name: str) -> torch.Tensor:
     """
     Check if any part of a RigidObject asset is inside the camera FOV.
-
-    Returns:
-        torch.Tensor: [num_envs, 1] float tensor where 1.0 = any corner in FOV
+    Returns [num_envs,1] float tensor: 1.0 = any corner in FOV, 0.0 otherwise.
     """
 
-    # ----------------------------------------------------------------------
+    # -----------------------------
     # 1. Runtime objects
-    # ----------------------------------------------------------------------
+    # -----------------------------
     camera = env.scene[camera_name]   # TiledCamera
     asset  = env.scene[asset_name]    # RigidObject
     robot  = env.scene["robot"]       # Articulation / robot base
 
-    # ----------------------------------------------------------------------
+    num_envs = asset.data.root_pos_w.shape[0]
+
+    # -----------------------------
     # 2. Configuration objects
-    # ----------------------------------------------------------------------
+    # -----------------------------
     asset_cfg  = getattr(env.scene.cfg, asset_name)   # RigidObjectCfg
     camera_cfg = getattr(env.scene.cfg, camera_name)  # TiledCameraCfg
 
-    # ----------------------------------------------------------------------
-    # 3. Local bounding box corners (Cuboid only)
-    # ----------------------------------------------------------------------
+    # -----------------------------
+    # 3. Local bounding box corners
+    # -----------------------------
     size = torch.tensor(asset_cfg.spawn.size, device=env.device, dtype=torch.float32)
     half_extents = 0.5 * size
 
@@ -158,42 +158,49 @@ def asset_in_fov(env, camera_name: str, asset_name: str) -> torch.Tensor:
         [ 1,  1,  1],
     ], device=env.device, dtype=torch.float32)
 
-    corners_local = signs * half_extents   # [8, 3]
+    corners_local = signs * half_extents  # [8,3]
 
-    # ----------------------------------------------------------------------
-    # 4. Transform corners to world space
-    # ----------------------------------------------------------------------
-    corners_local_exp = corners_local.unsqueeze(0)   # [1, 8, 3]
-    rotated = math.quat_apply(asset.data.root_quat_w.unsqueeze(1), corners_local_exp)  # [num_envs, 8, 3]
-    corners_world = rotated + asset.data.root_pos_w.unsqueeze(1)                        # [num_envs, 8, 3]
+    # Expand to batch and flatten for quat_apply
+    num_corners = corners_local.shape[0]
+    corners_local_exp = corners_local.unsqueeze(0).expand(num_envs, -1, -1)  # [num_envs,8,3]
+    corners_local_flat = corners_local_exp.reshape(-1, 3)                      # [num_envs*8,3]
 
-    # ----------------------------------------------------------------------
-    # 5. Transform from world → robot base → camera frame
-    # ----------------------------------------------------------------------
-    # world → robot base
-    corners_base = math.quat_apply_inverse(
-        robot.data.root_quat_w.unsqueeze(1),
-        corners_world - robot.data.root_pos_w.unsqueeze(1)
-    )
+    # Repeat quaternions for each corner
+    asset_quats_flat = asset.data.root_quat_w.unsqueeze(1).expand(-1, num_corners, -1).reshape(-1, 4)  # [num_envs*8,4]
 
-    # robot base → camera frame
-    corners_cam = math.quat_apply_inverse(
-        camera.data.quat_w_world.unsqueeze(1),
-        corners_base
-    )
+    # Rotate corners
+    rotated_flat = math.quat_apply(asset_quats_flat, corners_local_flat)  # [num_envs*8,3]
 
-    # ----------------------------------------------------------------------
-    # 6. Compute camera FOV
-    # ----------------------------------------------------------------------
-    hfov = camera.cfg.spawn.horizontal_aperture / (2 * camera.cfg.spawn.focal_length)
-    vfov = camera.cfg.spawn.vertical_aperture / (2 * camera.cfg.spawn.focal_length)
+    # Reshape and add position
+    rotated = rotated_flat.view(num_envs, num_corners, 3)
+    corners_world = rotated + asset.data.root_pos_w.unsqueeze(1)
+
+    # -----------------------------
+    # 4. Transform to robot base
+    # -----------------------------
+    robot_quats_flat = robot.data.root_quat_w.unsqueeze(1).expand(-1, num_corners, -1).reshape(-1, 4)
+    corners_base_flat = (corners_world - robot.data.root_pos_w.unsqueeze(1)).reshape(-1, 3)
+    corners_base = math.quat_apply_inverse(robot_quats_flat, corners_base_flat).view(num_envs, num_corners, 3)
+
+    # -----------------------------
+    # 5. Transform to camera frame
+    # -----------------------------
+    camera_quats_flat = camera.data.quat_w_world.unsqueeze(1).expand(-1, num_corners, -1).reshape(-1, 4)
+    corners_cam_flat = corners_base.reshape(-1, 3)
+    corners_cam = math.quat_apply_inverse(camera_quats_flat, corners_cam_flat).view(num_envs, num_corners, 3)
+
+    # -----------------------------
+    # 6. Camera FOV
+    # -----------------------------
+    hfov = np.arctan(camera.cfg.spawn.horizontal_aperture / (2 * camera.cfg.spawn.focal_length))
+    vfov = np.arctan(camera.cfg.spawn.vertical_aperture / (2 * camera.cfg.spawn.focal_length))
 
     hfov = torch.tensor(hfov, device=env.device, dtype=torch.float32)
     vfov = torch.tensor(vfov, device=env.device, dtype=torch.float32)
 
-    # ----------------------------------------------------------------------
-    # 7. Check yaw/pitch for each corner
-    # ----------------------------------------------------------------------
+    # -----------------------------
+    # 7. Compute yaw/pitch per corner
+    # -----------------------------
     x = corners_cam[..., 0]
     y = corners_cam[..., 1]
     z = corners_cam[..., 2]
@@ -203,8 +210,8 @@ def asset_in_fov(env, camera_name: str, asset_name: str) -> torch.Tensor:
 
     in_fov_per_corner = (yaw < hfov) & (pitch < vfov)
 
-    # True if any corner is inside FOV
+    # True if any corner is in FOV
     is_any_corner_in_fov = torch.any(in_fov_per_corner, dim=1)
-    print(is_any_corner_in_fov.unsqueeze(1).float())
-    return is_any_corner_in_fov.unsqueeze(1).float()   # [num_envs, 1]
+    # print(is_any_corner_in_fov.unsqueeze(1).float())
 
+    return is_any_corner_in_fov.unsqueeze(1).float()  # [num_envs,1]

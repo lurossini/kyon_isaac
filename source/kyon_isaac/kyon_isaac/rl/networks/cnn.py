@@ -42,7 +42,7 @@ class CNN(nn.Module):
             nn.Linear(flat_dim, 1024), act,
             nn.Linear(1024, 256), act,
             nn.Linear(256, 64), act,
-            nn.Linear(64, latent_dim)
+            nn.Linear(64, latent_dim),
         )
 
         self._initialize_weights()
@@ -57,6 +57,7 @@ class CNN(nn.Module):
         x = self.conv(x)
         x = x.flatten(1)
         x = self.fc(x)
+        # print(f'latent: {torch.sigmoid(x[:, 3])}')
         return x
 
     def _initialize_weights(self):

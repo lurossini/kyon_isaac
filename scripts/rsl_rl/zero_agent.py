@@ -36,6 +36,14 @@ import isaaclab_tasks  # noqa: F401
 import kyon_isaac.tasks
 from isaaclab_tasks.utils import parse_env_cfg
 
+import zmq
+import cv2
+
+context = zmq.Context()
+socket_rgb = context.socket(zmq.PUSH)
+socket_rgb.connect("tcp://localhost:5555")
+socket_depth = context.socket(zmq.PUSH)
+socket_depth.connect("tcp://localhost:5556")
 # PLACEHOLDER: Extension template (do not remove this comment)
 
 
@@ -60,7 +68,12 @@ def main():
             # compute zero actions
             actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
             # apply actions
-            env.step(actions)
+            obs = env.step(actions)
+            print(f'privileged; {obs[0]["critic"][:, 6]}')
+            frame = obs[0]['rgb'][0, :, :, :3]
+            frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
+            ret, jpg = cv2.imencode(".jpg", frame_bgr)
+            socket_rgb.send(jpg.tobytes())
 
     # close the simulator
     env.close()
