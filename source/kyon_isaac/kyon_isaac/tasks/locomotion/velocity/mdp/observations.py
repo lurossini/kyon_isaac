@@ -192,8 +192,8 @@ def asset_in_fov(env, camera_name: str, asset_name: str) -> torch.Tensor:
     # -----------------------------
     # 6. Camera FOV
     # -----------------------------
-    hfov = np.arctan(camera.cfg.spawn.horizontal_aperture / (2 * camera.cfg.spawn.focal_length))
-    vfov = np.arctan(camera.cfg.spawn.vertical_aperture / (2 * camera.cfg.spawn.focal_length))
+    hfov = 0.8 * np.arctan(camera.cfg.spawn.horizontal_aperture / (2 * camera.cfg.spawn.focal_length))
+    vfov = 0.8 * np.arctan(camera.cfg.spawn.vertical_aperture / (2 * camera.cfg.spawn.focal_length))
 
     hfov = torch.tensor(hfov, device=env.device, dtype=torch.float32)
     vfov = torch.tensor(vfov, device=env.device, dtype=torch.float32)
@@ -212,6 +212,6 @@ def asset_in_fov(env, camera_name: str, asset_name: str) -> torch.Tensor:
 
     # True if any corner is in FOV
     is_any_corner_in_fov = torch.any(in_fov_per_corner, dim=1)
-    # print(is_any_corner_in_fov.unsqueeze(1).float())
+    print(is_any_corner_in_fov.unsqueeze(1).float())
 
     return is_any_corner_in_fov.unsqueeze(1).float()  # [num_envs,1]
