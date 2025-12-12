@@ -215,11 +215,24 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             actions = torch.zeros_like(actions)
             # env stepping
             obs, _, _, _ = env.step(actions)
+
+            # send camera views
             frame = obs['rgb'][0, :, :, :3]
             frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
-            ret, jpg = cv2.imencode(".jpg", frame_bgr)
+            _, jpg = cv2.imencode(".jpg", frame_bgr)
             socket_rgb.send(jpg.tobytes())
-            print(f'critic: {obs["critic"][0, 6]}')
+
+            frame_depth = obs['rgb'][0, :, :, 3]
+            _, jpg_depth = cv2.imencode(".jpg", frame_depth.cpu().numpy())
+            socket_depth.send(jpg_depth.tobytes())
+
+            # print error
+            latent = policy_nn.get_latent(obs) # type: ignore
+            confidence = torch.sigmoid(latent[:, -1])
+            latent[:, -1] = confidence
+            # print(f'error: {(obs["critic"][:, 3:] - latent).cpu().numpy()}')
+
+            # joy
             if args_cli.interactive:
                     while True:
                         try:
@@ -228,7 +241,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                             ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
                         except zmq.Again:
                             break     
-                    obs['critic'][0, 6:9] = torch.Tensor(ref)   
+                    obs['critic'][0, 6:9] = torch.Tensor(ref) 
+
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video
