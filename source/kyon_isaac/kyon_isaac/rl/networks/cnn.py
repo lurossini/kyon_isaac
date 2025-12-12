@@ -29,13 +29,14 @@ class CNN(nn.Module):
                                    stride=stride[i + 1], padding=1))
             convs.append(act)
 
-        self.conv = nn.Sequential(*convs)
+        self.conv = nn.Sequential(*convs + [nn.AdaptiveAvgPool2d((5, 5))])
 
         # compute flattened size after convs
         with torch.no_grad():
             dummy = torch.zeros(1, in_channels, resolution[0], resolution[1])
             h = self.conv(dummy)
             flat_dim = h.view(1, -1).shape[1]
+            print(flat_dim)
 
         # MLP head
         self.fc = nn.Sequential(
@@ -57,7 +58,6 @@ class CNN(nn.Module):
         x = self.conv(x)
         x = x.flatten(1)
         x = self.fc(x)
-        # print(f'latent: {torch.sigmoid(x[:, 3])}')
         return x
 
     def _initialize_weights(self):

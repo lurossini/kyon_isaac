@@ -244,18 +244,27 @@ class DetectionBCE:
                 with torch.no_grad():
                     advantages_batch = (advantages_batch - advantages_batch.mean()) / (advantages_batch.std() + 1e-8)
 
+            # self.policy.act(obs_batch)
+            # value_batch = self.policy.evaluate(obs_batch, masks=masks_batch, hidden_state=hidden_states_batch[1])
+            # print(f'value_batch: {value_batch}')
+
             # Compute latent loss
             latent = self.policy.get_latent(obs_batch)
-            latent_loss = self.latent_loss_fn(self.policy.get_critic_obs(obs_batch)[:, 3:6], 
-                                              latent[:, :3], 
-                                              weight=self.policy.get_critic_obs(obs_batch)[:, 6].unsqueeze(1).repeat(1, 3))
+            # latent = value_batch[:, -4:]
+            latent_loss = self.latent_loss_fn(latent[:, :3],
+                                              self.policy.get_critic_obs(obs_batch)[:, 3:6]) 
+                                            #   weight=self.policy.get_critic_obs(obs_batch)[:, 6].unsqueeze(1).repeat(1, 3))
+
+            # print(f"latent: {latent[:, :3]}  -  target: {self.policy.get_critic_obs(obs_batch)[:, 3:6]}  -  loss: {latent_loss}")
+            # print(f'critic: {self.policy.get_critic_obs(obs_batch)}')
+            # print(f"latent: {latent}")
 
             confidence = latent[:, 3]
             confidence_loss = self.confidence_loss_fn(confidence, 
                                                       self.policy.get_critic_obs(obs_batch)[:, 6])
                         
-            # loss = self.latent_coef * latent_loss + confidence_loss 
-            loss = confidence_loss 
+            loss = self.latent_coef * latent_loss + confidence_loss 
+            # loss = confidence_loss 
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -286,7 +295,7 @@ class DetectionBCE:
 
         # Construct the loss dictionary
         loss_dict = {
-            # "latent": mean_latent_loss,
+            "latent": mean_latent_loss,
             "confidence": mean_confidence_loss,
         }
 

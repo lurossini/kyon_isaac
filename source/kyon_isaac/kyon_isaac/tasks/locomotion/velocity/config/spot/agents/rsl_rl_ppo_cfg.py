@@ -121,7 +121,7 @@ class KyonTeacherPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         clip_param=0.2,
         entropy_coef=0.0025,
         num_learning_epochs=10,
-        num_mini_batches=32, 
+        num_mini_batches=16, 
         learning_rate=1.0e-4,  
         schedule="non-adaptive",
         gamma=0.97,
