@@ -102,6 +102,9 @@ if args_cli.interactive:
 import zmq
 import cv2
 
+import numpy as np 
+np.set_printoptions(suppress=True, precision=3)
+
 context = zmq.Context()
 socket_rgb = context.socket(zmq.PUSH)
 socket_rgb.connect("tcp://localhost:5555")
@@ -230,7 +233,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             latent = policy_nn.get_latent(obs) # type: ignore
             confidence = torch.sigmoid(latent[:, -1])
             latent[:, -1] = confidence
-            # print(f'error: {(obs["critic"][:, 3:] - latent).cpu().numpy()}')
+            print(f'error: {(obs["critic"][:, 3:] - latent).cpu().numpy()}')
 
             # joy
             if args_cli.interactive:

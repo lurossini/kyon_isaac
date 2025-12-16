@@ -42,36 +42,33 @@ KYON_LOWER_BODY_ENV_CFG = KyonFlatEnvCfg()
 from kyon_isaac.assets.kyon_train import *
 from kyon_isaac.assets.kyon_play import *
 
-import numpy as np
-np.set_printoptions(precision=3)
-
 @configclass
 class KyonEventCfg:
     """Configuration for events."""
 
-    # reset_base = EventTerm(
-    #     func=mdp.reset_root_state_uniform,
-    #     mode="reset",
-    #     params={
-    #         # "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
-    #         "pose_range": {"x": (-0., 0.), "y": (-0., 0.), "yaw": (-0., 0.)},
-    #         "velocity_range": {
-    #             "x": (-0.0, 0.0),
-    #             "y": (-0.0, 0.0),
-    #             "z": (-0.0, 0.0),
-    #             "roll": (-0.0, 0.0),
-    #             "pitch": (-0.0, 0.0),
-    #             "yaw": (-0.0, 0.0),
-    #         },
-    #     },
-    # )
+    reset_base = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            # "pose_range": {"x": (-0., 0.), "y": (-0., 0.), "yaw": (-0., 0.)},
+            "velocity_range": {
+                "x": (-0.0, 0.0),
+                "y": (-0.0, 0.0),
+                "z": (-0.0, 0.0),
+                "roll": (-0.0, 0.0),
+                "pitch": (-0.0, 0.0),
+                "yaw": (-0.0, 0.0),
+            },
+        },
+    )
 
     reset_box = EventTerm(
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            # "pose_range": {"x": (2.0, 2.0), "y": (-0.1, 0.1), "z": (-0.1, 0.1)},
-            "pose_range": {"x": (1., 2.), "y": (-1.0, 1.0), "z": (0., 0.5)},
+            "pose_range": {"x": (-4.0, 4.0), "y": (-4.0, 4.0), "z": (-0.1, 0.1)},
+            # "pose_range": {"x": (2., 3.), "y": (-1.0, 1.0), "z": (0., 0.5)},
             "velocity_range": {
                 "x": (-0.0, 0.0),
                 "y": (-0.0, 0.0),
@@ -95,6 +92,8 @@ class KyonActionsCfg:
         low_level_actions=KYON_LOWER_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_LOWER_BODY_ENV_CFG.observations.policy,
     )
+
+    # zero_action = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0., use_default_offset=True)
 
 @configclass
 class KyonObservationsCfg:
@@ -184,31 +183,31 @@ class KyonRewardsCfg():
     #         "target_asset_cfg": SceneEntityCfg("box"),
     #     }
     # )
-    # hierarchy = RewTerm(
-    #     func=kyon_mdp.test_hierarchy,
-    #     weight=1.,
-    #     params={
-    #         "rewards": {
-    #             "rew_1": RewTerm(
-    #                 func=kyon_mdp.orient_towards_goal,
-    #                 weight=1.,
-    #                 params={
-    #                     "source_asset_cfg": SceneEntityCfg("robot"),
-    #                     "target_asset_cfg": SceneEntityCfg("box"),
-    #                 }
-    #             ),
-    #             "rew2": RewTerm(
-    #                     func=kyon_mdp.goal_reached,
-    #                     weight=5.,
-    #                     params={
-    #                         "source_asset_cfg": SceneEntityCfg("robot"),
-    #                         "target_asset_cfg": SceneEntityCfg("box"),
-    #                         "threshold": 0.7
-    #                     }
-    #             ),  
-    #         }
-    #     }
-    # )
+    hierarchy = RewTerm(
+        func=kyon_mdp.test_hierarchy,
+        weight=1.,
+        params={
+            "rewards": {
+                "rew_1": RewTerm(
+                    func=kyon_mdp.orient_towards_goal,
+                    weight=1.,
+                    params={
+                        "source_asset_cfg": SceneEntityCfg("robot"),
+                        "target_asset_cfg": SceneEntityCfg("box"),
+                    }
+                ),
+                "rew2": RewTerm(
+                        func=kyon_mdp.goal_reached,
+                        weight=5.,
+                        params={
+                            "source_asset_cfg": SceneEntityCfg("robot"),
+                            "target_asset_cfg": SceneEntityCfg("box"),
+                            "threshold": 0.7
+                        }
+                ),  
+            }
+        }
+    )
 
 @configclass
 class KyonTerminationsCfg:
@@ -222,14 +221,14 @@ class KyonTerminationsCfg:
     #     func=mdp.illegal_contact,
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="pelvis"), "threshold": 1.0},
     # )
-    goal_reached = DoneTerm(
-        func=kyon_mdp.goal_reached_termination,
-        params={
-            "source_asset_cfg": SceneEntityCfg("robot"),
-            "target_asset_cfg": SceneEntityCfg("box"),
-            "threshold": 0.7,
-        },
-    )
+    # goal_reached = DoneTerm(
+    #     func=kyon_mdp.goal_reached_termination,
+    #     params={
+    #         "source_asset_cfg": SceneEntityCfg("robot"),
+    #         "target_asset_cfg": SceneEntityCfg("box"),
+    #         "threshold": 0.7,
+    #     },
+    # )
 
 @configclass
 class NavigationEnvCfg(ManagerBasedRLEnvCfg):
@@ -281,7 +280,7 @@ class NavigationEnvCfg(ManagerBasedRLEnvCfg):
                 ),
             ),
             init_state=RigidObjectCfg.InitialStateCfg(
-                pos=(2.0, 0.0, 0.7), # Initial position (e.g., slightly above ground)
+                pos=(0.0, 0.0, 0.7), # Initial position (e.g., slightly above ground)
                 # You'll randomize the position in the reset function
             ),
         )

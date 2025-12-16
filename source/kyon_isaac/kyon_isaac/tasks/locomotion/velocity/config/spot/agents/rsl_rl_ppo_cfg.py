@@ -56,6 +56,7 @@ class VisionRslRlPpoActorCriticCfg(RslRlPpoActorCriticCfg):
     cnn_hidden_dims: tuple[int] | list[int] = MISSING
     kernel_size: tuple[int] | list[int] = MISSING
     stride: tuple[int] | list[int] = MISSING
+    latent_normalization: bool = MISSING
 
 @configclass
 class KyonVisionPPORunnerCfg(RslRlOnPolicyRunnerCfg):
@@ -104,6 +105,7 @@ class KyonTeacherPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         init_noise_std=0.5,
         actor_obs_normalization=False, 
         critic_obs_normalization=False,
+        latent_normalization=True,
         actor_hidden_dims=[128, 128],
         critic_hidden_dims=[128, 128],
         cnn_hidden_dims=[16, 32, 128, 256],
@@ -115,14 +117,14 @@ class KyonTeacherPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         latent_dim=4,
     )
     algorithm = RslRlPpoAlgorithmCfg(
-        class_name="DetectionBCE",
+        class_name="PPOWithCNN",
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
         entropy_coef=0.0025,
         num_learning_epochs=10,
         num_mini_batches=16, 
-        learning_rate=1.0e-4,  
+        learning_rate=3.0e-4,  
         schedule="non-adaptive",
         gamma=0.97,
         lam=0.95,

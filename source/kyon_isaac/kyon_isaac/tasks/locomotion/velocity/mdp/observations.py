@@ -212,6 +212,6 @@ def asset_in_fov(env, camera_name: str, asset_name: str) -> torch.Tensor:
 
     # True if any corner is in FOV
     is_any_corner_in_fov = torch.any(in_fov_per_corner, dim=1)
-    print(is_any_corner_in_fov.unsqueeze(1).float())
+    # print(is_any_corner_in_fov.unsqueeze(1).float())
 
     return is_any_corner_in_fov.unsqueeze(1).float()  # [num_envs,1]

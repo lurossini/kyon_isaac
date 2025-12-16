@@ -18,6 +18,7 @@ class ActorCriticWithCNN(nn.Module):
         resolution: tuple[int],
         actor_obs_normalization: bool = False,
         critic_obs_normalization: bool = False,
+        latent_normalization: bool = False,
         actor_hidden_dims: tuple[int] | list[int] = [256, 256, 256],
         critic_hidden_dims: tuple[int] | list[int] = [256, 256, 256],
         cnn_hidden_dims: tuple[int] | list[int] = [8, 16],
@@ -69,6 +70,11 @@ class ActorCriticWithCNN(nn.Module):
         # encoder
         self.cnn = CNN(resolution=resolution, in_channels=in_channels, latent_dim=latent_dim, hidden_channel_size=cnn_hidden_dims, kernel_size=kernel_size, stride=stride)
         print(f"CNN: {self.cnn}")
+        self.latent_normalization = latent_normalization
+        if actor_obs_normalization:
+            self.latent_normalizer = EmpiricalNormalization(resolution[0] * resolution[1] * in_channels)
+        else:
+            self.latent_normalizer = torch.nn.Identity()
 
         # Action noise
         self.noise_std_type = noise_std_type
@@ -137,6 +143,7 @@ class ActorCriticWithCNN(nn.Module):
     
     def get_latent(self, obs):
         obs_rgb = self.get_cnn_obs(obs)
+        obs_rgb = self.latent_normalizer(obs_rgb)
         self.latent = self.cnn(obs_rgb)
         return self.latent
     

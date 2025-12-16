@@ -134,7 +134,7 @@ class PPOWithCNN:
         loss_fn_dict = {
             "mse": nn.functional.mse_loss,
             "huber": nn.functional.huber_loss,
-            "bce": nn.functional.binary_cross_entropy,
+            "bce": nn.functional.binary_cross_entropy_with_logits,
         }
         if loss_type in loss_fn_dict:
             self.loss_fn = loss_fn_dict[loss_type]
@@ -336,12 +336,14 @@ class PPOWithCNN:
 
             # Compute latent loss
             latent = self.policy.get_latent(obs_batch)
-            latent_loss = self.latent_loss_fn(self.policy.get_critic_obs(obs_batch)[:, 3:6], 
-                                              latent[:, :3], 
+            latent_loss = self.latent_loss_fn(latent[:, :3],
+                                              self.policy.get_critic_obs(obs_batch)[:, 3:6],
                                               weight=self.policy.get_critic_obs(obs_batch)[:, 6].unsqueeze(1).repeat(1, 3))
 
-            confidence = torch.sigmoid(latent[:, 3])
-            confidence_loss = self.confidence_loss_fn(confidence, self.policy.get_critic_obs(obs_batch)[:, 6])
+            # Compute confidence loss
+            confidence = latent[:, 3]
+            confidence_loss = self.confidence_loss_fn(confidence, 
+                                                      self.policy.get_critic_obs(obs_batch)[:, 6])
             
             loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean() + self.latent_coef * latent_loss + confidence_loss 
 
