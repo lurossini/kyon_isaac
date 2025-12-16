@@ -69,11 +69,11 @@ def main():
             actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
             # apply actions
             obs = env.step(actions)
-            print(f'privileged; {obs[0]["critic"][:, 6]}')
-            frame = obs[0]['rgb'][0, :, :, :3]
-            frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
-            ret, jpg = cv2.imencode(".jpg", frame_bgr)
-            socket_rgb.send(jpg.tobytes())
+            if 'rgb' in obs[0].keys():
+                frame = obs[0]['rgb'][0, :, :, :3]
+                frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
+                ret, jpg = cv2.imencode(".jpg", frame_bgr)
+                socket_rgb.send(jpg.tobytes())
 
     # close the simulator
     env.close()

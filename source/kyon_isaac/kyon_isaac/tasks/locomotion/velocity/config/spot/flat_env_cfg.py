@@ -55,7 +55,6 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
 class KyonActionsCfg:
     """Action specifications for the MDP."""
     joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.4, use_default_offset=True)
-    # joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.4, use_default_offset=True)
 
 
 @configclass
@@ -137,22 +136,9 @@ class KyonObservationsMjxCfg:
             self.enable_corruption = False
             self.concatenate_terms = True
 
-    @configclass
-    class RGBCameraPolicyCfg(ObsTerm):
-        """Observations for policy group with RGB images."""
-
-        front_up_cam = ObsTerm(
-            # func=mdp.image, params={"sensor_cfg": SceneEntityCfg("front_up_camera"), "data_type": ["rgb", "distance_to_image_plane"], "normalize": False}
-            func=mdp.image, params={"sensor_cfg": SceneEntityCfg("front_up_camera"), "data_type": "rgb", "normalize": False}
-        )
-        def __post_init__(self):
-            self.enable_corruption = False
-            self.concatenate_terms = False
-
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
-    rgb_cam: RGBCameraPolicyCfg = RGBCameraPolicyCfg()
 
 @configclass
 class KyonObservationsCfg:
@@ -448,7 +434,7 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.contact_forces.update_period = self.sim.dt
 
         
-        # switch robot to Kyon-d
+        # switch robot to Kyon
         self.scene.robot = KYON_LOWER_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # imu
@@ -523,42 +509,3 @@ class KyonFullFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
         # post init of parent
         super().__post_init__()
         self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-class KyonCameraFlatEnvCfg(KyonFlatEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        # Set left and right wrist cameras for VLA policy training
-        self.scene.front_up_camera = CameraCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
-            update_period=0.0333,
-            height=256,
-            width=256,
-            data_types=["rgb", "distance_to_image_plane"],
-            debug_vis=True,
-            spawn=sim_utils.PinholeCameraCfg(
-                focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
-            ),
-            offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
-        )
-
-        self.image_obs_list = ["front_up_camera"]
-
-class KyonCameraFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
-    def __post_init__(self):
-        super().__post_init__()
-        # Set left and right wrist cameras for VLA policy training
-        self.scene.front_up_camera = CameraCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
-            update_period=0.0333,
-            height=256,
-            width=256,
-            data_types=["rgb", "distance_to_image_plane"],
-            debug_vis=True,
-            spawn=sim_utils.PinholeCameraCfg(
-                focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
-            ),
-            offset=CameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
-        )
-
-        self.image_obs_list = ["front_up_camera"]
-
