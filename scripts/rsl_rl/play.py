@@ -220,20 +220,21 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             obs, _, _, _ = env.step(actions)
 
             # send camera views
-            frame = obs['rgb'][0, :, :, :3]
-            frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
-            _, jpg = cv2.imencode(".jpg", frame_bgr)
-            socket_rgb.send(jpg.tobytes())
+            if "rgb" in obs.keys():
+                frame = obs['rgb'][0, :, :, :3]
+                frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
+                _, jpg = cv2.imencode(".jpg", frame_bgr)
+                socket_rgb.send(jpg.tobytes())
 
-            frame_depth = obs['rgb'][0, :, :, 3]
-            _, jpg_depth = cv2.imencode(".jpg", frame_depth.cpu().numpy())
-            socket_depth.send(jpg_depth.tobytes())
+                frame_depth = obs['rgb'][0, :, :, 3]
+                _, jpg_depth = cv2.imencode(".jpg", frame_depth.cpu().numpy())
+                socket_depth.send(jpg_depth.tobytes())
 
-            # print error
-            latent = policy_nn.get_latent(obs) # type: ignore
-            confidence = torch.sigmoid(latent[:, -1])
-            latent[:, -1] = confidence
-            print(f'error: {(obs["critic"][:, 3:] - latent).cpu().numpy()}')
+                # print error
+                latent = policy_nn.get_latent(obs) # type: ignore
+                confidence = torch.sigmoid(latent[:, -1])
+                latent[:, -1] = confidence
+                print(f'error: {(obs["critic"][:, 3:] - latent).cpu().numpy()}')
 
             # joy
             if args_cli.interactive:

@@ -55,7 +55,7 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
 class KyonActionsCfg:
     """Action specifications for the MDP."""
     joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.4, use_default_offset=True)
-
+    joint_pos_arms = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*"], scale=0., use_default_offset=True)
 
 @configclass
 class KyonCommandsCfg:

@@ -11,7 +11,7 @@ from tensordict import TensorDict
 from torch.distributions import Normal
 from typing import Any, NoReturn
 
-from rsl_rl.networks import MLP, EmpiricalNormalization, HiddenState
+from rsl_rl.networks import MLP, EmpiricalNormalization
 
 from kyon_isaac.rl.networks.cnn import CNN
 
