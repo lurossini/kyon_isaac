@@ -6,74 +6,55 @@
 from __future__ import annotations
 
 import torch
-from dataclasses import MISSING
 from typing import TYPE_CHECKING
 
-import isaaclab.utils.math as math_utils
-from isaaclab.assets import Articulation
-from isaaclab.managers import ActionTerm, ActionTermCfg, ObservationGroupCfg, ObservationManager, ActionManager
-from isaaclab.markers import VisualizationMarkers
-from isaaclab.markers.config import BLUE_ARROW_X_MARKER_CFG, GREEN_ARROW_X_MARKER_CFG
+from isaaclab.assets.articulation import Articulation
+from isaaclab.managers.action_manager import ActionTerm
+from isaaclab.utils.assets import retrieve_file_path
+from isaaclab.utils.io.torchscript import load_torchscript_model
+
+from dataclasses import MISSING
+
+from isaaclab.managers.action_manager import ActionTerm, ActionTermCfg
 from isaaclab.utils import configclass
-from isaaclab.utils.assets import check_file_path, read_file
 
 if TYPE_CHECKING:
-    from isaaclab.envs import ManagerBasedRLEnv
+    from isaaclab.envs import ManagerBasedEnv
+
+    from .configs.action_cfg import AgileBasedLowerBodyActionCfg
 
 
-class PreTrainedPolicyAction(ActionTerm):
-    r"""Pre-trained policy action term.
+class AgileBasedLowerBodyAction(ActionTerm):
+    """Action term that is based on Agile lower body RL policy."""
 
-    This action term infers a pre-trained policy and applies the corresponding low-level actions to the robot.
-    The raw actions correspond to the commands for the pre-trained policy.
-
-    """
-
-    cfg: PreTrainedPolicyActionCfg
+    cfg: AgileBasedLowerBodyActionCfg
     """The configuration of the action term."""
 
-    def __init__(self, cfg: PreTrainedPolicyActionCfg, env: ManagerBasedRLEnv) -> None:
-        # initialize the action term
+    _asset: Articulation
+    """The articulation asset to which the action term is applied."""
+
+    def __init__(self, cfg: AgileBasedLowerBodyActionCfg, env: ManagerBasedEnv):
         super().__init__(cfg, env)
 
-        self.robot: Articulation = env.scene[cfg.asset_name]
+        # Save the observation config from cfg
+        self._observation_cfg = env.cfg.observations
+        self._obs_group_name = cfg.obs_group_name
 
-        # load policy
-        if not check_file_path(cfg.policy_path):
-            raise FileNotFoundError(f"Policy file '{cfg.policy_path}' does not exist.")
-        file_bytes = read_file(cfg.policy_path)
-        self.policy = torch.jit.load(file_bytes).to(env.device).eval()
+        # Load policy here if needed
+        _temp_policy_path = retrieve_file_path(cfg.policy_path)
+        self._policy = load_torchscript_model(_temp_policy_path, device=env.device)
+        self._env = env
 
-        self._raw_actions = torch.zeros(self.num_envs, self.action_dim, device=self.device)
+        # Find joint ids for the lower body joints
+        self._joint_ids, self._joint_names = self._asset.find_joints(self.cfg.joint_names)
 
-        # prepare low level actions
+        # Get the scale and offset from the configuration
+        self._policy_output_scale = torch.tensor(cfg.policy_output_scale, device=env.device)
+        self._policy_output_offset = self._asset.data.default_joint_pos[:, self._joint_ids].clone()
 
-        # self._low_level_action_term: ActionTerm = cfg.low_level_actions.class_type(cfg.low_level_actions, env)
-        # self.low_level_actions = torch.zeros(self.num_envs, self._low_level_action_term.action_dim, device=self.device)
-
-        self.low_level_action_manager = ActionManager(cfg.low_level_actions, env)
-        self.low_level_actions = torch.zeros(self.num_envs, self.low_level_action_manager.total_action_dim, device=self.device)
-
-        self._low_level_action_terms = list()
-        for action in self.low_level_action_manager.active_terms:
-            self._low_level_action_terms.append(self.low_level_action_manager.get_term(action))
-
-        def last_action():
-            # reset the low level actions if the episode was reset
-            if hasattr(env, "episode_length_buf"):
-                self.low_level_actions[env.episode_length_buf == 0, :] = 0
-            return self.low_level_actions
-
-        # remap some of the low level observations to internal observations
-        cfg.low_level_observations.actions.func = lambda dummy_env: last_action()
-        cfg.low_level_observations.actions.params = dict()
-        cfg.low_level_observations.velocity_commands.func = lambda dummy_env: self._raw_actions
-        cfg.low_level_observations.velocity_commands.params = dict()
-
-        # add the low level observations to the observation manager
-        self._low_level_obs_manager = ObservationManager({"ll_policy": cfg.low_level_observations}, env)
-
-        self._counter = 0
+        # Create tensors to store raw and processed actions
+        self._raw_actions = torch.zeros(self.num_envs, len(self._joint_ids), device=self.device)
+        self._processed_actions = torch.zeros(self.num_envs, len(self._joint_ids), device=self.device)
 
     """
     Properties.
@@ -81,7 +62,8 @@ class PreTrainedPolicyAction(ActionTerm):
 
     @property
     def action_dim(self) -> int:
-        return 3
+        """Lower Body Action: [vx, vy, wz, hip_height]"""
+        return 4
 
     @property
     def raw_actions(self) -> torch.Tensor:
@@ -89,112 +71,84 @@ class PreTrainedPolicyAction(ActionTerm):
 
     @property
     def processed_actions(self) -> torch.Tensor:
-        return self.raw_actions
+        return self._processed_actions
 
-    """
-    Operations.
-    """
+    def _compose_policy_input(self, base_command: torch.Tensor, obs_tensor: torch.Tensor) -> torch.Tensor:
+        """Compose the policy input by concatenating repeated commands with observations.
+
+        Args:
+            base_command: The base command tensor [vx, vy, wz, hip_height].
+            obs_tensor: The observation tensor from the environment.
+
+        Returns:
+            The composed policy input tensor with repeated commands concatenated to observations.
+        """
+        # Get history length from observation configuration
+        history_length = getattr(self._observation_cfg, self._obs_group_name).history_length
+        # Default to 1 if history_length is None (no history, just current observation)
+        if history_length is None:
+            history_length = 1
+
+        # Repeat commands based on history length and concatenate with observations
+        repeated_commands = base_command.unsqueeze(1).repeat(1, history_length, 1).reshape(base_command.shape[0], -1)
+        policy_input = torch.cat([repeated_commands, obs_tensor], dim=-1)
+
+        return policy_input
 
     def process_actions(self, actions: torch.Tensor):
-        self._raw_actions[:] = actions
+        """Process the input actions using the locomotion policy.
+
+        Args:
+            actions: The lower body commands.
+        """
+
+        # Extract base command from the action tensor
+        # Assuming the base command [vx, vy, wz, hip_height]
+        base_command = actions
+
+        obs_tensor = self._env.obs_buf[self._obs_group_name]
+
+        # Compose policy input using helper function
+        policy_input = self._compose_policy_input(base_command, obs_tensor)
+
+        joint_actions = self._policy.forward(policy_input)
+
+        self._raw_actions[:] = joint_actions
+
+        # Apply scaling and offset to the raw actions from the policy
+        self._processed_actions = joint_actions * self._policy_output_scale + self._policy_output_offset
+
+        # Clip actions if configured
+        if self.cfg.clip is not None:
+            self._processed_actions = torch.clamp(
+                self._processed_actions, min=self._clip[:, :, 0], max=self._clip[:, :, 1]
+            )
 
     def apply_actions(self):
-        if self._counter % self.cfg.low_level_decimation == 0:
-            low_level_obs = self._low_level_obs_manager.compute_group("ll_policy")
-            self.low_level_actions[:] = self.policy(low_level_obs)
-            i = 0
-            for action in self._low_level_action_terms:
-                action.process_actions(self.low_level_actions[:, i : i + action.action_dim])
-                i += action.action_dim
-            self._counter = 0
-        for action in self._low_level_action_terms:
-            action.apply_actions()
-        self._counter += 1
-
-    """
-    Debug visualization.
-    """
-
-    def _set_debug_vis_impl(self, debug_vis: bool):
-        # set visibility of markers
-        # note: parent only deals with callbacks. not their visibility
-        if debug_vis:
-            # create markers if necessary for the first time
-            if not hasattr(self, "base_vel_goal_visualizer"):
-                # -- goal
-                marker_cfg = GREEN_ARROW_X_MARKER_CFG.copy()
-                marker_cfg.prim_path = "/Visuals/Actions/velocity_goal"
-                marker_cfg.markers["arrow"].scale = (0.5, 0.5, 0.5)
-                self.base_vel_goal_visualizer = VisualizationMarkers(marker_cfg)
-                # -- current
-                marker_cfg = BLUE_ARROW_X_MARKER_CFG.copy()
-                marker_cfg.prim_path = "/Visuals/Actions/velocity_current"
-                marker_cfg.markers["arrow"].scale = (0.5, 0.5, 0.5)
-                self.base_vel_visualizer = VisualizationMarkers(marker_cfg)
-            # set their visibility to true
-            self.base_vel_goal_visualizer.set_visibility(True)
-            self.base_vel_visualizer.set_visibility(True)
-        else:
-            if hasattr(self, "base_vel_goal_visualizer"):
-                self.base_vel_goal_visualizer.set_visibility(False)
-                self.base_vel_visualizer.set_visibility(False)
-
-    def _debug_vis_callback(self, event):
-        # check if robot is initialized
-        # note: this is needed in-case the robot is de-initialized. we can't access the data
-        if not self.robot.is_initialized:
-            return
-        # get marker location
-        # -- base state
-        base_pos_w = self.robot.data.root_pos_w.clone()
-        base_pos_w[:, 2] += 0.5
-        # -- resolve the scales and quaternions
-        vel_des_arrow_scale, vel_des_arrow_quat = self._resolve_xy_velocity_to_arrow(self.raw_actions[:, :2])
-        vel_arrow_scale, vel_arrow_quat = self._resolve_xy_velocity_to_arrow(self.robot.data.root_lin_vel_b[:, :2])
-        # display markers
-        self.base_vel_goal_visualizer.visualize(base_pos_w, vel_des_arrow_quat, vel_des_arrow_scale)
-        self.base_vel_visualizer.visualize(base_pos_w, vel_arrow_quat, vel_arrow_scale)
-
-    """
-    Internal helpers.
-    """
-
-    def _resolve_xy_velocity_to_arrow(self, xy_velocity: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Converts the XY base velocity command to arrow direction rotation."""
-        # obtain default scale of the marker
-        default_scale = self.base_vel_goal_visualizer.cfg.markers["arrow"].scale
-        # arrow-scale
-        arrow_scale = torch.tensor(default_scale, device=self.device).repeat(xy_velocity.shape[0], 1)
-        arrow_scale[:, 0] *= torch.linalg.norm(xy_velocity, dim=1) * 3.0
-        # arrow-direction
-        heading_angle = torch.atan2(xy_velocity[:, 1], xy_velocity[:, 0])
-        zeros = torch.zeros_like(heading_angle)
-        arrow_quat = math_utils.quat_from_euler_xyz(zeros, zeros, heading_angle)
-        # convert everything back from base to world frame
-        base_quat_w = self.robot.data.root_quat_w
-        arrow_quat = math_utils.quat_mul(base_quat_w, arrow_quat)
-
-        return arrow_scale, arrow_quat
+        """Apply the actions to the environment."""
+        # Store the raw actions
+        self._asset.set_joint_position_target(self._processed_actions, joint_ids=self._joint_ids)
 
 
 @configclass
-class PreTrainedPolicyActionCfg(ActionTermCfg):
-    """Configuration for pre-trained policy action term.
+class AgileBasedLowerBodyActionCfg(ActionTermCfg):
+    """Configuration for the lower body action term that is based on Agile lower body RL policy."""
 
-    See :class:`PreTrainedPolicyAction` for more details.
-    """
+    class_type: type[ActionTerm] = AgileBasedLowerBodyAction
+    """The class type for the lower body action term."""
 
-    class_type: type[ActionTerm] = PreTrainedPolicyAction
-    """ Class of the action term."""
-    asset_name: str = MISSING
-    """Name of the asset in the environment for which the commands are generated."""
+    joint_names: list[str] = MISSING
+    """The names of the joints to control."""
+
+    obs_group_name: str = MISSING
+    """The name of the observation group to use."""
+
     policy_path: str = MISSING
-    """Path to the low level policy (.pt files)."""
-    low_level_decimation: int = 4
-    """Decimation factor for the low level action term."""
-    low_level_actions: object = MISSING
-    """Low level action configuration."""
-    low_level_observations: ObservationGroupCfg = MISSING
-    """Low level observation configuration."""
-    debug_vis: bool = True
-    """Whether to visualize debug information. Defaults to False."""
+    """The path to the policy model."""
+
+    policy_output_offset: float = 0.0
+    """Offsets the output of the policy."""
+
+    policy_output_scale: float = 1.0
+    """Scales the output of the policy."""
+

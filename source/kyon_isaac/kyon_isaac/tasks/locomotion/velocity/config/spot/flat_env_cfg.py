@@ -54,8 +54,8 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
 @configclass
 class KyonActionsCfg:
     """Action specifications for the MDP."""
-    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.4, use_default_offset=True)
-    joint_pos_arms = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*"], scale=0., use_default_offset=True)
+    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.5, use_default_offset=True)
+    joint_pos_arms = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*"], scale=1.0, use_default_offset=True)
 
 @configclass
 class KyonCommandsCfg:
@@ -184,7 +184,7 @@ class KyonEventCfg:
     """Configuration for randomization."""
 
     # startup
-    reset_arms = None
+    # reset_arms = None
 
     physics_material = EventTerm(
         func=mdp.randomize_rigid_body_material,
@@ -496,13 +496,13 @@ class KyonFullFlatEnvCfg(KyonFlatEnvCfg):
         super().__post_init__()
         self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
-        self.events.reset_arms = EventTerm(
-            func=kyon_mdp.reset_joint_target_to_default, 
-            mode="startup",
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
-            },
-        )
+        # self.events.reset_arms = EventTerm(
+        #     func=kyon_mdp.reset_joint_target_to_default, 
+        #     mode="startup",
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
+        #     },
+        # )
 
 class KyonFullFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
     def __post_init__(self) -> None:

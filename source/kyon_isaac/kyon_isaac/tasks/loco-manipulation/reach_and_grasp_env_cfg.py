@@ -22,7 +22,6 @@ from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg, TiledCameraCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.navigation.mdp as mdp
-from isaaclab_tasks.manager_based.manipulation.pick_place import mdp as manip_mdp
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
 
 # arms stuff
@@ -75,16 +74,6 @@ class KyonEventCfg:
         },
     )
 
-    reset_robot_joints = EventTerm(
-        func=spot_mdp.reset_joints_around_default,
-        mode="reset",
-        params={
-            "position_range": (-0.2, 0.2),
-            "velocity_range": (-2.5, 2.5),
-            "asset_cfg": SceneEntityCfg("robot"),
-        },
-    )
-
     # reset_box = EventTerm(
     #     func=mdp.reset_root_state_uniform,
     #     mode="reset",
@@ -105,64 +94,64 @@ class KyonEventCfg:
 
 @configclass
 class KyonCommandsCfg:
-    left_ee_pose = manipulation_mdp.UniformPoseCommandCfg(
-        asset_name="robot",
-        body_name="dagana_1_base",
-        resampling_time_range=(4.0, 4.0),
-        debug_vis=True,
-        ranges=manipulation_mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(-0.5, 0.5),
-            pos_y=(-0.2, 0.2),
-            pos_z=(-0.2, 0.2),
-            roll=(-1.6, 1.4),
-            pitch=(0.0, 0.0),
-            yaw=(-1.6, 1.4),
-        ),
-    )
-
-    # right_ee_pose = manipulation_mdp.UniformPoseCommandCfg(
+    # left_ee_pose = manipulation_mdp.UniformPoseCommandCfg(
     #     asset_name="robot",
-    #     body_name="dagana_2_base",
+    #     body_name="dagana_1_base",
     #     resampling_time_range=(4.0, 4.0),
     #     debug_vis=True,
     #     ranges=manipulation_mdp.UniformPoseCommandCfg.Ranges(
     #         pos_x=(0.6, 1.0),
-    #         pos_y=(-0.4, -0.2),
+    #         pos_y=(-0.2, 0.2),
     #         pos_z=(0.15, 0.5),
     #         roll=(-1.6, -1.4),
     #         pitch=(0.0, 0.0),
-    #         yaw=(-1.6, -1.4),
+    #         yaw=(-1.6, 1.4),
     #     ),
     # )
+
+    right_ee_pose = manipulation_mdp.UniformPoseCommandCfg(
+        asset_name="robot",
+        body_name="dagana_2_base",
+        resampling_time_range=(4.0, 4.0),
+        debug_vis=True,
+        ranges=manipulation_mdp.UniformPoseCommandCfg.Ranges(
+            pos_x=(0.6, 1.0),
+            pos_y=(-0.4, -0.2),
+            pos_z=(0.15, 0.5),
+            roll=(-1.6, -1.4),
+            pitch=(0.0, 0.0),
+            yaw=(-1.6, -1.4),
+        ),
+    )
 
 @configclass
 class KyonActionsCfg:
     """Action specifications for the MDP."""
     # Lower-body navigation actions from previous trained policy
-    pre_trained_policy_action: kyon_mdp.PreTrainedPolicyActionCfg = kyon_mdp.PreTrainedPolicyActionCfg(
-        asset_name="robot",
-        # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/new_locomotion_roll_015_no_arms/exported/policy.pt",
-        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2025-12-16_14-08-27/exported/policy.pt",
-        low_level_decimation=4,
-        low_level_actions=KYON_FULL_BODY_ENV_CFG.actions,
-        low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
-    )
-
-    left_arm_action = DifferentialInverseKinematicsActionCfg(
-        asset_name="robot",
-        joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"],
-        body_name="dagana_1_base",
-        controller=DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls"),
-        body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.0]),
-    )
-
-    # right_arm_action = DifferentialInverseKinematicsActionCfg(
+    # pre_trained_policy_action: kyon_mdp.PreTrainedPolicyActionCfg = kyon_mdp.PreTrainedPolicyActionCfg(
     #     asset_name="robot",
-    #     joint_names=["shoulder_yaw_2", "shoulder_pitch_2", "elbow_pitch_2", "wrist_pitch_2", "wrist_yaw_2"],
-    #     body_name="dagana_2_base",
+    #     # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/new_locomotion_roll_015_no_arms/exported/policy.pt",
+    #     policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2025-12-16_14-08-27/exported/policy.pt",
+    #     low_level_decimation=4,
+    #     low_level_actions=KYON_FULL_BODY_ENV_CFG.actions,
+    #     low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
+    # )
+
+    # left_arm_action = DifferentialInverseKinematicsActionCfg(
+    #     asset_name="robot",
+    #     joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"],
+    #     body_name="dagana_1_base",
     #     controller=DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls"),
     #     body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.0]),
     # )
+
+    right_arm_action = DifferentialInverseKinematicsActionCfg(
+        asset_name="robot",
+        joint_names=["shoulder_yaw_2", "shoulder_pitch_2", "elbow_pitch_2", "wrist_pitch_2", "wrist_yaw_2"],
+        body_name="dagana_2_base",
+        controller=DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls"),
+        body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.0]),
+    )
 
 @configclass
 class KyonObservationsCfg:
@@ -173,10 +162,8 @@ class KyonObservationsCfg:
         """Observations for policy group."""
 
         actions = ObsTerm(func=mdp.last_action)
-        left_arm_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "left_ee_pose"})
-        left_eef_pos = ObsTerm(func=manip_mdp.get_eef_pos, params={"link_name": "left_wrist_yaw_link"})
-        left_eef_quat = ObsTerm(func=manip_mdp.get_eef_quat, params={"link_name": "left_wrist_yaw_link"})
-        # right_arm_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "right_ee_pose"})
+        # left_arm_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "left_ee_pose"})
+        right_arm_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "right_ee_pose"})
 
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05)
@@ -253,16 +240,16 @@ class KyonRewardsCfg():
     """Reward terms for the MDP."""
 
     # task terms
-    left_end_effector_position_tracking = RewTerm(
-        func=manipulation_mdp.position_command_error,
-        weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="dagana_1_base"), "command_name": "left_ee_pose"},
-    )
-    left_end_effector_position_tracking_fine_grained = RewTerm(
-        func=manipulation_mdp.position_command_error_tanh,
-        weight=0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="dagana_1_base"), "std": 0.1, "command_name": "left_ee_pose"},
-    )
+    # left_end_effector_position_tracking = RewTerm(
+    #     func=manipulation_mdp.position_command_error,
+    #     weight=-0.2,
+    #     params={"asset_cfg": SceneEntityCfg("robot", body_names="dagana_1_base"), "command_name": "left_ee_pose"},
+    # )
+    # left_end_effector_position_tracking_fine_grained = RewTerm(
+    #     func=manipulation_mdp.position_command_error_tanh,
+    #     weight=0.1,
+    #     params={"asset_cfg": SceneEntityCfg("robot", body_names="dagana_1_base"), "std": 0.1, "command_name": "left_ee_pose"},
+    # )
     # left_end_effector_orientation_tracking = RewTerm(
     #     func=manipulation_mdp.orientation_command_error,
     #     weight=-0.1,
@@ -270,16 +257,16 @@ class KyonRewardsCfg():
     # )
 
 
-    # right_end_effector_position_tracking = RewTerm(
-    #     func=manipulation_mdp.position_command_error,
-    #     weight=-0.2,
-    #     params={"asset_cfg": SceneEntityCfg("robot", body_names="dagana_2_base"), "command_name": "right_ee_pose"},
-    # )
-    # right_end_effector_position_tracking_fine_grained = RewTerm(
-    #     func=manipulation_mdp.position_command_error_tanh,
-    #     weight=0.1,
-    #     params={"asset_cfg": SceneEntityCfg("robot", body_names="dagana_2_base"), "std": 0.1, "command_name": "right_ee_pose"},
-    # )
+    right_end_effector_position_tracking = RewTerm(
+        func=manipulation_mdp.position_command_error,
+        weight=-0.2,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names="dagana_2_base"), "command_name": "right_ee_pose"},
+    )
+    right_end_effector_position_tracking_fine_grained = RewTerm(
+        func=manipulation_mdp.position_command_error_tanh,
+        weight=0.1,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names="dagana_2_base"), "std": 0.1, "command_name": "right_ee_pose"},
+    )
     # right_end_effector_orientation_tracking = RewTerm(
     #     func=manipulation_mdp.orientation_command_error,
     #     weight=-0.1,
