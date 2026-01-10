@@ -17,7 +17,7 @@ class SpotFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 20000
     save_interval = 50
-    experiment_name = "kyon_flat"
+    experiment_name = "kyon_locomanipulation"
     store_code_state = False
     obs_groups = {"policy": ["policy"], "critic": ["critic"]}
     policy = RslRlPpoActorCriticCfg(
