@@ -119,7 +119,7 @@ class ActionsCfg:
 @configclass
 class RewardsCfg:
     left_ee_pos_tracking = RewTerm(
-        func=manipulation_mdp.position_command_error,
+        func=kyon_mdp.position_command_error,
         weight=-2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
@@ -128,7 +128,7 @@ class RewardsCfg:
     )
 
     left_ee_pos_tracking_fine_grained = RewTerm(
-        func=manipulation_mdp.position_command_error_tanh,
+        func=kyon_mdp.position_command_error_tanh,
         weight=2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),

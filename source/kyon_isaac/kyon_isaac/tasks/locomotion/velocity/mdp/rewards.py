@@ -231,3 +231,35 @@ class GaitReward(ManagerTermBase):
         se_act_1 = torch.clip(torch.square(contact_time[:, foot_0] - air_time[:, foot_1]), max=self.max_err**2)
         return torch.exp(-(se_act_0 + se_act_1) / self.std)
     
+def position_command_error(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize tracking of the position error using L2-norm.
+
+    The function computes the position error between the desired position (from the command) and the
+    current position of the asset's body (in world frame). The position error is computed as the L2-norm
+    of the difference between the desired and current positions.
+    """
+    # extract the asset (to enable type hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    # obtain the desired and current positions
+    des_pos_w = command[:, :3]
+    curr_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids[0]]  # type: ignore
+    return torch.norm(curr_pos_w - des_pos_w, dim=1)
+
+
+def position_command_error_tanh(
+    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg
+) -> torch.Tensor:
+    """Reward tracking of the position using the tanh kernel.
+
+    The function computes the position error between the desired position (from the command) and the
+    current position of the asset's body (in world frame) and maps it with a tanh kernel.
+    """
+    # extract the asset (to enable type hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    # obtain the desired and current positions
+    des_pos_w = command[:, :3]
+    curr_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids[0]]  # type: ignore
+    distance = torch.norm(curr_pos_w - des_pos_w, dim=1)
+    return 1 - torch.tanh(distance / std)
