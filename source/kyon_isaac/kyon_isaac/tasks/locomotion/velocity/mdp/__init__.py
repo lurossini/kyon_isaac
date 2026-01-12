@@ -10,3 +10,4 @@ from .event import *
 from .action import *
 from .termination import *
 from .pre_trained_policy_action import *
+from .commands import *

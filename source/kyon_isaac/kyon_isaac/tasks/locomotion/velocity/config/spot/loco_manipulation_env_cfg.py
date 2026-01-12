@@ -32,7 +32,7 @@ KYON_ISAAC_BASE_DIR = Path(kyon_isaac.__file__).resolve().parent
 @configclass
 class CommandsCfg(KyonCommandsCfg):
     
-    left_ee_pose = manipulation_mdp.UniformPoseCommandCfg(
+    left_ee_pose = kyon_mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name="wrist_yaw_1_link",
         resampling_time_range=(4.0, 4.0),
@@ -45,7 +45,7 @@ class CommandsCfg(KyonCommandsCfg):
         #     pitch=(0.0, 0.0),
         #     yaw=(-1.6, -1.4),
         # ),
-        ranges=manipulation_mdp.UniformPoseCommandCfg.Ranges(
+        ranges=kyon_mdp.UniformPoseCommandCfg.Ranges(
             pos_x=(-2, 2),
             pos_y=(-2, 2),
             pos_z=(0.3, 0.7),
@@ -87,7 +87,7 @@ class ActionsCfg:
     pre_trained_policy_action: kyon_mdp.PreTrainedPolicyActionCfg = kyon_mdp.PreTrainedPolicyActionCfg(
         asset_name="robot",
         # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/new_locomotion_roll_015_no_arms/exported/policy.pt",
-        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../..//scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-07_15-04-08/exported/policy.pt",
+        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-07_15-04-08/exported/policy.pt",
         low_level_actions=KYON_FULL_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
     )
@@ -256,6 +256,7 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
         super().__post_init__()
 
         self.events.reset_arms = None
+        self.episode_length_s = 2.0
 
         # # Table
         # self.scene.packing_table = AssetBaseCfg(
