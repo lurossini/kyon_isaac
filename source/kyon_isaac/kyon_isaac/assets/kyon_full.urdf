@@ -39,6 +39,23 @@
       </geometry>
     </collision>
   </link>
+  <link name="battery">
+    <inertial>
+      <mass value="9.8"/>
+      <inertia ixx="0.04647935016666667" ixy="0.0" ixz="0.0" iyy="0.09353241683333333" iyz="0.0" izz="0.12974056666666667"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <box size="0.329 0.225 0.0793"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+  </link>
+  <joint name="battery_joint" type="fixed">
+    <origin xyz="0.0 0.0 -0.02725"/>
+    <parent link="pelvis"/>
+    <child link="battery"/>
+  </joint>
   <joint name="base_joint" type="fixed">
     <parent link="pelvis"/>
     <child link="base_link"/>

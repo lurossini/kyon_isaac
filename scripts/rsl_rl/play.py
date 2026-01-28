@@ -215,9 +215,17 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
-            actions = torch.zeros_like(actions)
             # env stepping
             obs, _, _, _ = env.step(actions)
+            obsvec = obs['policy'].flatten()
+            # print('---')
+            # print('ang vel', obsvec[0:3])
+            # print('proj grav', obsvec[3:6])
+            # print('vel cmd', obsvec[6:9])
+            # print('joint pos', obsvec[9:31])
+            # print('joint vel', obsvec[31:55])
+            # print('action', obsvec[55:67])
+            # print('---')
 
             # send camera views
             if "rgb" in obs.keys():
