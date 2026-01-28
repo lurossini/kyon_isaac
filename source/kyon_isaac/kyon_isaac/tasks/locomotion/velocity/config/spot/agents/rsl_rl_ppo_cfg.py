@@ -43,6 +43,67 @@ class SpotFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
     )
 
+@configclass
+class LocoManipulationEnvPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    num_steps_per_env = 24
+    max_iterations = 20000
+    save_interval = 50
+    experiment_name = "kyon_locomanipulation"
+    store_code_state = False
+    obs_groups = {"policy": ["policy"], "critic": ["critic"]}
+    policy = RslRlPpoActorCriticCfg(
+        init_noise_std=1.0,
+        actor_obs_normalization=True, 
+        critic_obs_normalization=True,
+        actor_hidden_dims=[256, 128, 128], 
+        critic_hidden_dims=[256, 128, 128], 
+        activation="elu",
+    )
+    algorithm = RslRlPpoAlgorithmCfg(
+        value_loss_coef=0.5,
+        use_clipped_value_loss=True,
+        clip_param=0.2,
+        entropy_coef=0.0025,
+        num_learning_epochs=5,
+        num_mini_batches=32, 
+        learning_rate=3.0e-4,  
+        schedule="adaptive",
+        gamma=0.97,
+        lam=0.95,
+        desired_kl=0.01,
+        max_grad_norm=1.0,
+    )
+
+@configclass
+class NavigationEnvPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    num_steps_per_env = 8
+    max_iterations = 1500
+    save_interval = 50
+    experiment_name = "kyon_navigation"
+    obs_groups = {"policy": ["policy"], "critic": ["critic"]}
+    policy = RslRlPpoActorCriticCfg(
+        init_noise_std=0.5,
+        actor_obs_normalization=False,
+        critic_obs_normalization=False,
+        actor_hidden_dims=[128, 128],
+        critic_hidden_dims=[128, 128],
+        activation="elu",
+    )
+    algorithm = RslRlPpoAlgorithmCfg(
+        value_loss_coef=1.0,
+        use_clipped_value_loss=True,
+        clip_param=0.2,
+        entropy_coef=0.005,
+        num_learning_epochs=5,
+        num_mini_batches=4,
+        learning_rate=1.0e-3,
+        schedule="adaptive",
+        gamma=0.99,
+        lam=0.95,
+        desired_kl=0.01,
+        max_grad_norm=1.0,
+    )
+
 from rsl_rl.runners import on_policy_runner
 on_policy_runner.ActorCriticWithCNN = ActorCriticWithCNN
 on_policy_runner.PPOWithCNN = PPOWithCNN

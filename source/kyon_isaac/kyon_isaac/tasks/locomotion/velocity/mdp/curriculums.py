@@ -13,9 +13,10 @@ from typing import TYPE_CHECKING
 from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.terrains import TerrainImporter
+from isaaclab.managers.command_manager import CommandTerm
 
 if TYPE_CHECKING:
-    from isaaclab.envs import RLTaskEnv
+    from isaaclab.envs import RLTaskEnv, ManagerBasedRLEnv
 
 
 def terrain_levels_vel(
@@ -48,3 +49,9 @@ def terrain_levels_vel(
     terrain.update_env_origins(env_ids, move_up, move_down)
     # return the mean terrain level
     return torch.mean(terrain.terrain_levels.float())
+
+def target_pos_levels(
+    env: ManagerBasedRLEnv, env_ids: Sequence[int], asset_cfg: SceneEntityCfg, command_name: str
+):
+    asset: Articulation = env.scene[asset_cfg.name]
+    command_term: CommandTerm = env.command_manager.get_term(command_name)

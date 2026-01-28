@@ -249,10 +249,12 @@ class PreTrainedPolicyAction(ActionTerm):
 
     def process_actions(self, actions: torch.Tensor):
         self._raw_actions[:] = actions
+        # self._raw_actions = torch.clamp(self._raw_actions, -1., 1.)
 
     def apply_actions(self):
         if self._counter % self.cfg.low_level_decimation == 0:
             low_level_obs = self._low_level_obs_manager.compute_group("ll_policy")
+            # print(low_level_obs[:, 6:9].cpu().numpy())
             self.low_level_actions[:] = self.policy(low_level_obs)
             self._low_level_action_term.process_actions(self.low_level_actions)
             self._counter = 0

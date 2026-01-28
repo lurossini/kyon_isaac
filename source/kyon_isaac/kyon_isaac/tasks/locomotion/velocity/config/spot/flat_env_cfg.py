@@ -95,7 +95,7 @@ class KyonObservationsMjxCfg:
             func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05)
         )
         joint_pos_error_history = ObsTerm(
-            func=kyon_mdp.joint_pos_error, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=3
+            func=kyon_mdp.joint_pos_error, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=3
         )
         joint_vel = ObsTerm(
             func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
@@ -260,12 +260,12 @@ class KyonEventCfg:
     )
 
     reset_robot_joints = EventTerm(
-        func=spot_mdp.reset_joints_around_default,
+        func=kyon_mdp.reset_joints_around_default,
         mode="reset",
         params={
             "position_range": (-0.2, 0.2),
-            "velocity_range": (-2.5, 2.5),
-            "asset_cfg": SceneEntityCfg("robot"),
+            "velocity_range": (-0.1, 0.1),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"]),
         },
     )
 
@@ -388,7 +388,7 @@ class KyonTerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     body_contact = DoneTerm(
         func=mdp.illegal_contact,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis", "knee_pitch_.*"]), "threshold": 1.0},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis"]), "threshold": 1.0},
     )
     terrain_out_of_bounds = DoneTerm(
         func=mdp.terrain_out_of_bounds,

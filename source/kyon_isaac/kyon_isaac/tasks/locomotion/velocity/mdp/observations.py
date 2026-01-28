@@ -96,6 +96,11 @@ def heading_direction(env: ManagerBasedRLEnv,
 
     return angle
 
+def get_absolute_pose(env: ManagerBasedRLEnv,
+                      asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    return asset.data.body_link_pose_w[:, asset_cfg.body_ids]
+
 # def asset_in_fov(env: ManagerBasedRLEnv,
 #                  camera_cfg: TiledCameraCfg,
 #                  asset_cfg: SceneEntityCfg) -> torch.Tensor:

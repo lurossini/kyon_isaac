@@ -9,6 +9,7 @@ from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
+from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
@@ -21,6 +22,8 @@ import isaaclab_tasks.manager_based.manipulation.reach.mdp as manipulation_mdp
 from isaaclab.envs.mdp.actions.actions_cfg import DifferentialInverseKinematicsActionCfg
 from isaaclab.controllers.differential_ik_cfg import DifferentialIKControllerCfg
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
+import isaaclab_tasks.manager_based.navigation.mdp as navigation_mdp
 
 from kyon_isaac.tasks.locomotion.velocity.config.spot.flat_env_cfg import KyonFullFlatEnvCfg, KyonFullFlatEnvCfg_PLAY, KyonCommandsCfg, KyonActionsCfg, KyonRewardsCfg, KyonTerminationsCfg, KyonObservationsMjxCfg
 
@@ -30,30 +33,35 @@ KYON_FULL_BODY_ENV_CFG = KyonFullFlatEnvCfg()
 KYON_ISAAC_BASE_DIR = Path(kyon_isaac.__file__).resolve().parent
 
 @configclass
-class CommandsCfg(KyonCommandsCfg):
+class CurriculumCfg:
+    left_ee_pos_levels = CurrTerm
+
+@configclass
+class CommandsCfg:
     
     left_ee_pose = kyon_mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name="wrist_yaw_1_link",
-        resampling_time_range=(4.0, 4.0),
+        resampling_time_range=(20.0, 20.0),
         debug_vis=True,
-        # ranges=manipulation_mdp.UniformPoseCommandCfg.Ranges(
-        #     pos_x=(0.6, 0.8),
-        #     pos_y=(0.2, 0.4),
-        #     pos_z=(0.0, 0.4),
-        #     roll=(-1.6, -1.4),
-        #     pitch=(0.0, 0.0),
-        #     yaw=(-1.6, -1.4),
-        # ),
         ranges=kyon_mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(-2, 2),
-            pos_y=(-2, 2),
+            pos_x=(-3, 3),
+            pos_y=(-3, 3),
             pos_z=(0.3, 0.7),
             roll=(-1.6, -1.4),
             pitch=(0.0, 0.0),
             yaw=(-1.6, -1.4),
         ),
     )
+
+    # pose_command = mdp.UniformPose2dCommandCfg(
+    #     asset_name="robot",
+    #     simple_heading=False,
+    #     resampling_time_range=(8.0, 8.0),
+    #     debug_vis=True,
+    #     ranges=mdp.UniformPose2dCommandCfg.Ranges(pos_x=(-3.0, 3.0), pos_y=(-3.0, 3.0), heading=(-3.14, 3.14)),
+    # )
+
 
     # right_ee_pose = manipulation_mdp.UniformPoseCommandCfg(
     #     asset_name="robot",
@@ -87,7 +95,9 @@ class ActionsCfg:
     pre_trained_policy_action: kyon_mdp.PreTrainedPolicyActionCfg = kyon_mdp.PreTrainedPolicyActionCfg(
         asset_name="robot",
         # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/new_locomotion_roll_015_no_arms/exported/policy.pt",
-        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-07_15-04-08/exported/policy.pt",
+        # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-07_15-04-08/exported/policy.pt",
+        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-21_02-30-02/exported/policy.pt",
+        low_level_decimation=1,
         low_level_actions=KYON_FULL_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
     )
@@ -101,12 +111,12 @@ class ActionsCfg:
     #     body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.0]),
     # )
 
-    upper_body_joint_pos = mdp.JointPositionActionCfg(
-        asset_name="robot", 
-        joint_names=["shoulder_yaw_.*", "shoulder_pitch_.*", "elbow_pitch_.*", "wrist_pitch_.*"], 
-        scale=1., 
-        use_default_offset=True
-    )
+    # upper_body_joint_pos = mdp.JointPositionActionCfg(
+    #     asset_name="robot", 
+    #     joint_names=["shoulder_yaw_.*", "shoulder_pitch_.*", "elbow_pitch_.*", "wrist_.*"], 
+    #     scale=0.5, 
+    #     use_default_offset=True
+    # )
 
     # right_arm_action = DifferentialInverseKinematicsActionCfg(
     #     asset_name="robot",.
@@ -118,24 +128,54 @@ class ActionsCfg:
 
 @configclass
 class RewardsCfg:
+    # left_ee_pos_tracking = RewTerm(
+    #     func=kyon_mdp.position_command_error,
+    #     weight=-0.1,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+    #         "command_name": "left_ee_pose",
+    #     },
+    # )
     left_ee_pos_tracking = RewTerm(
-        func=kyon_mdp.position_command_error,
-        weight=-2.0,
+        func=kyon_mdp.position_command_error_tanh,
+        weight=0.5,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+            "std": 2.0,
             "command_name": "left_ee_pose",
         },
     )
 
     left_ee_pos_tracking_fine_grained = RewTerm(
         func=kyon_mdp.position_command_error_tanh,
-        weight=2.0,
+        weight=0.5,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-            "std": 0.05,
+            "std": 0.2,
             "command_name": "left_ee_pose",
         },
     )
+
+    # position_tracking = RewTerm(
+    #     func=navigation_mdp.position_command_error_tanh,
+    #     weight=0.5,
+    #     params={"std": 2.0, "command_name": "pose_command"},
+    # )
+    # position_tracking_fine_grained = RewTerm(
+    #     func=navigation_mdp.position_command_error_tanh,
+    #     weight=0.5,
+    #     params={"std": 0.2, "command_name": "pose_command"},
+    # )
+    # orientation_tracking = RewTerm(
+    #     func=navigation_mdp.heading_command_error_abs,
+    #     weight=-0.2,
+    #     params={"command_name": "pose_command"},
+    # )
+
+    # action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
+    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
+
+
     # left_end_effector_orientation_tracking = RewTerm(
     #     func=manipulation_mdp.orientation_command_error,
     #     weight=-0.1,
@@ -177,8 +217,6 @@ class ObservationCfg:
     @configclass
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
-
-        # `` observation terms (order preserved)
         base_ang_vel = ObsTerm(
             func=mdp.base_ang_vel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.1, n_max=0.1)
         )
@@ -187,19 +225,20 @@ class ObservationCfg:
             params={"asset_cfg": SceneEntityCfg("robot")},
             noise=Unoise(n_min=-0.05, n_max=0.05),
         )
-        joint_pos = ObsTerm(
-            func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05)
-        )
-        joint_pos_error_history = ObsTerm(
-            func=kyon_mdp.joint_pos_error, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=3
-        )
-        joint_vel = ObsTerm(
-            func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
-        )
+        # joint_pos = ObsTerm(
+        #     func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot" , joint_names=['shoulder_yaw_1', 'shoulder_pitch_1', 'knee_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1'])}, noise=Unoise(n_min=-0.05, n_max=0.05)
+        # )
+        # joint_pos_error_history = ObsTerm(
+        #     func=kyon_mdp.joint_pos_error, params={"asset_cfg": SceneEntityCfg("robot", joint_names=['shoulder_yaw_1', 'shoulder_pitch_1', 'knee_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1'])}, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=3
+        # )
+        # joint_vel = ObsTerm(
+        #     func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=['shoulder_yaw_1', 'shoulder_pitch_1', 'knee_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1'])}, noise=Unoise(n_min=-0.5, n_max=0.5)
+        # )
         actions = ObsTerm(func=mdp.last_action)
         # velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         left_arm_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "left_ee_pose"})
         # right_arm_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "right_ee_pose"})
+        # pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "pose_command"})
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -208,26 +247,17 @@ class ObservationCfg:
     @configclass
     class CriticCfg(PolicyCfg):
         """Observations for critic group."""
+        base_lin_pos = ObsTerm(func=mdp.root_pos_w)
 
-        # `` observation terms (order preserved)
         base_lin_vel = ObsTerm(
             func=mdp.base_lin_vel, params={"asset_cfg": SceneEntityCfg("robot")}
         )
 
-        imu_lin_acc = ObsTerm(
-            func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("imu_sensor")}
-        )
+        # left_arm_pose =ObsTerm(func=kyon_mdp.get_absolute_pose, params={"asset_cfg": SceneEntityCfg("robot", body_names=["wrist_yaw_1_link"])})
 
-        contact_forces = ObsTerm(
-            func=kyon_mdp.contact_forces, 
-            params={
-                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")
-            }, 
-        )
-
-        joint_effort = ObsTerm(
-            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}
-        )
+        # joint_effort = ObsTerm(
+        #     func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_.*", "shoulder_pitch_.*", "elbow_pitch_.*", "wrist_.*"])}
+        # )
         def __post_init__(self):
             self.enable_corruption = False
             self.concatenate_terms = True
@@ -235,8 +265,6 @@ class ObservationCfg:
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
-    # lower_body_policy: KyonObservationsMjxCfg.PolicyCfg = KyonObservationsMjxCfg.PolicyCfg()
-    # lower_body_policy.actions = ObsTerm(func=mdp.last_action, params={"action_name":"lower_body_joint_pos"})
 
 
 @configclass
@@ -255,8 +283,16 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        self.events.reset_arms = None
-        self.episode_length_s = 2.0
+        self.sim.dt = KYON_FULL_BODY_ENV_CFG.sim.dt
+        self.sim.render_interval = KYON_FULL_BODY_ENV_CFG.decimation
+        self.decimation = KYON_FULL_BODY_ENV_CFG.decimation * 10
+
+        # self.episode_length_s = self.commands.pose_command.resampling_time_range[1]
+
+        self.terminations.terrain_out_of_bounds = None
+        
+        # self.events.reset_arms = None
+        # self.episode_length_s = 2.0
 
         # # Table
         # self.scene.packing_table = AssetBaseCfg(
@@ -282,3 +318,8 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
 class LocomanipulationKyonSceneCfg_PLAY(LocomanipulationKyonSceneCfg):
     def __post_init__(self):
         super().__post_init__()
+
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 2.5
+        # disable randomization for play
+        self.observations.policy.enable_corruption = False
