@@ -11,6 +11,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
+from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
 from isaaclab.utils import configclass
@@ -32,9 +33,9 @@ from pathlib import Path
 KYON_FULL_BODY_ENV_CFG = KyonFullFlatEnvCfg()
 KYON_ISAAC_BASE_DIR = Path(kyon_isaac.__file__).resolve().parent
 
-@configclass
-class CurriculumCfg:
-    left_ee_pos_levels = CurrTerm
+# @configclass
+# class CurriculumCfg:
+#     left_ee_pos_levels = CurrTerm
 
 @configclass
 class CommandsCfg:
@@ -42,7 +43,7 @@ class CommandsCfg:
     left_ee_pose = kyon_mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name="wrist_yaw_1_link",
-        resampling_time_range=(20.0, 20.0),
+        resampling_time_range=(8.0, 8.0),
         debug_vis=True,
         ranges=kyon_mdp.UniformPoseCommandCfg.Ranges(
             pos_x=(-3, 3),
@@ -80,28 +81,17 @@ class CommandsCfg:
 
 @configclass
 class ActionsCfg:
-    # lower_body_joint_pos = kyon_mdp.AgileBasedLowerBodyActionCfg(
-    #     asset_name="robot",
-    #     joint_names=[
-    #         "hip_roll_.*",
-    #         "hip_pitch_.*",
-    #         "knee_pitch_.*",
-    #     ],
-    #     policy_output_scale=0.5,
-    #     obs_group_name="lower_body_policy",  # need to be the same name as the on in ObservationCfg
-    #     policy_path=f"/workspace/kyon_isaac/scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-07_15-04-08/exported/policy.pt",
-    # )
 
     pre_trained_policy_action: kyon_mdp.PreTrainedPolicyActionCfg = kyon_mdp.PreTrainedPolicyActionCfg(
         asset_name="robot",
         # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/new_locomotion_roll_015_no_arms/exported/policy.pt",
         # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-07_15-04-08/exported/policy.pt",
-        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-21_02-30-02/exported/policy.pt",
+        # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-21_02-30-02/exported/policy.pt",
+        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-29_10-29-56/exported/policy.pt",
         low_level_decimation=1,
         low_level_actions=KYON_FULL_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
     )
-
 
     # left_arm_action = DifferentialInverseKinematicsActionCfg(
     #     asset_name="robot",
@@ -111,12 +101,12 @@ class ActionsCfg:
     #     body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.0]),
     # )
 
-    # upper_body_joint_pos = mdp.JointPositionActionCfg(
-    #     asset_name="robot", 
-    #     joint_names=["shoulder_yaw_.*", "shoulder_pitch_.*", "elbow_pitch_.*", "wrist_.*"], 
-    #     scale=0.5, 
-    #     use_default_offset=True
-    # )
+    upper_body_joint_pos = mdp.JointPositionActionCfg(
+        asset_name="robot", 
+        joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"], 
+        scale=1.5, 
+        use_default_offset=True
+    )
 
     # right_arm_action = DifferentialInverseKinematicsActionCfg(
     #     asset_name="robot",.
@@ -137,21 +127,21 @@ class RewardsCfg:
     #     },
     # )
     left_ee_pos_tracking = RewTerm(
-        func=kyon_mdp.position_command_error_tanh,
-        weight=0.5,
+        func=kyon_mdp.position_command_error_gauss,
+        weight=2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-            "std": 2.0,
+            "std": 1.0,
             "command_name": "left_ee_pose",
         },
     )
 
     left_ee_pos_tracking_fine_grained = RewTerm(
-        func=kyon_mdp.position_command_error_tanh,
-        weight=0.5,
+        func=kyon_mdp.position_command_error_gauss,
+        weight=2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-            "std": 0.2,
+            "std": 0.5,
             "command_name": "left_ee_pose",
         },
     )
@@ -172,7 +162,7 @@ class RewardsCfg:
     #     params={"command_name": "pose_command"},
     # )
 
-    # action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
+    action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
 
 
@@ -225,18 +215,19 @@ class ObservationCfg:
             params={"asset_cfg": SceneEntityCfg("robot")},
             noise=Unoise(n_min=-0.05, n_max=0.05),
         )
-        # joint_pos = ObsTerm(
-        #     func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot" , joint_names=['shoulder_yaw_1', 'shoulder_pitch_1', 'knee_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1'])}, noise=Unoise(n_min=-0.05, n_max=0.05)
-        # )
-        # joint_pos_error_history = ObsTerm(
-        #     func=kyon_mdp.joint_pos_error, params={"asset_cfg": SceneEntityCfg("robot", joint_names=['shoulder_yaw_1', 'shoulder_pitch_1', 'knee_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1'])}, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=3
-        # )
-        # joint_vel = ObsTerm(
-        #     func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=['shoulder_yaw_1', 'shoulder_pitch_1', 'knee_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1'])}, noise=Unoise(n_min=-0.5, n_max=0.5)
-        # )
+        joint_pos = ObsTerm(
+            func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot" , joint_names=['shoulder_yaw_1', 'shoulder_pitch_1', 'knee_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1'])}, noise=Unoise(n_min=-0.05, n_max=0.05)
+        )
+        joint_pos_error_history = ObsTerm(
+            func=kyon_mdp.joint_pos_error, params={"asset_cfg": SceneEntityCfg("robot", joint_names=['shoulder_yaw_1', 'shoulder_pitch_1', 'knee_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1'])}, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=3
+        )
+        joint_vel = ObsTerm(
+            func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=['shoulder_yaw_1', 'shoulder_pitch_1', 'knee_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1'])}, noise=Unoise(n_min=-0.5, n_max=0.5)
+        )
         actions = ObsTerm(func=mdp.last_action)
         # velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         left_arm_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "left_ee_pose"})
+        left_arm_pose =ObsTerm(func=kyon_mdp.get_relative_pose, params={"asset_cfg": SceneEntityCfg("robot", body_names=["wrist_yaw_1_link"])})
         # right_arm_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "right_ee_pose"})
         # pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "pose_command"})
 
@@ -247,13 +238,9 @@ class ObservationCfg:
     @configclass
     class CriticCfg(PolicyCfg):
         """Observations for critic group."""
-        base_lin_pos = ObsTerm(func=mdp.root_pos_w)
-
         base_lin_vel = ObsTerm(
             func=mdp.base_lin_vel, params={"asset_cfg": SceneEntityCfg("robot")}
         )
-
-        # left_arm_pose =ObsTerm(func=kyon_mdp.get_absolute_pose, params={"asset_cfg": SceneEntityCfg("robot", body_names=["wrist_yaw_1_link"])})
 
         # joint_effort = ObsTerm(
         #     func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_.*", "shoulder_pitch_.*", "elbow_pitch_.*", "wrist_.*"])}
@@ -290,8 +277,18 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
         # self.episode_length_s = self.commands.pose_command.resampling_time_range[1]
 
         self.terminations.terrain_out_of_bounds = None
+        self.terminations.arms_contact = DoneTerm(
+            func=mdp.illegal_contact,
+            params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["shoulder_pitch_1_link", "elbow_pitch_1_link", "wrist_pitch_1_link"]), "threshold": 1.0},
+        )
         
-        # self.events.reset_arms = None
+        self.events.reset_arms = EventTerm(
+            func=kyon_mdp.reset_joint_target_to_default, 
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_2", "shoulder_pitch_2", "elbow_pitch_2", "wrist_pitch_2", "wrist_yaw_2", "dagana_.*"])
+            },
+        )
         # self.episode_length_s = 2.0
 
         # # Table

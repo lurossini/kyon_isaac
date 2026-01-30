@@ -261,5 +261,23 @@ def position_command_error_tanh(
     # obtain the desired and current positions
     des_pos_w = command[:, :3]
     curr_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids[0]]  # type: ignore
-    distance = torch.norm(curr_pos_w - des_pos_w, dim=1)
+    distance = torch.norm(curr_pos_w[:, :2] - des_pos_w[:, :2], dim=1)
     return 1 - torch.tanh(distance / std)
+
+def position_command_error_gauss(
+    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg
+) -> torch.Tensor:
+    """Reward tracking of the position using the tanh kernel.
+
+    The function computes the position error between the desired position (from the command) and the
+    current position of the asset's body (in world frame) and maps it with a tanh kernel.
+    """
+    # extract the asset (to enable type hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    # obtain the desired and current positions
+    des_pos_b = command[:, :3]
+    des_pos_w, _ = math.combine_frame_transforms(asset.data.root_pos_w, asset.data.root_quat_w, des_pos_b)
+    curr_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids[0]]  # type: ignore
+    distance = torch.norm(curr_pos_w - des_pos_w, dim=1)
+    return torch.exp(-distance / std)

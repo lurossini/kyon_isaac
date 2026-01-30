@@ -99,7 +99,23 @@ def heading_direction(env: ManagerBasedRLEnv,
 def get_absolute_pose(env: ManagerBasedRLEnv,
                       asset_cfg: SceneEntityCfg) -> torch.Tensor:
     asset: Articulation = env.scene[asset_cfg.name]
-    return asset.data.body_link_pose_w[:, asset_cfg.body_ids]
+    body_pos_w = asset.data.body_link_pose_w[:, asset_cfg.body_ids]
+    return body_pos_w.reshape(env.scene.num_envs, -1)
+
+def get_relative_pose(env: ManagerBasedRLEnv,
+                      asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_pose_w = asset.data.body_link_pose_w[:, asset_cfg.body_ids].squeeze(1)
+    body_pose_b = torch.zeros_like(body_pose_w)
+    root_quat_inv = math.quat_conjugate(asset.data.root_quat_w)
+    root_pos_inv = -math.quat_apply(root_quat_inv, asset.data.root_pos_w)
+    body_pose_b[:, :3], body_pose_b[:, 3:] = math.combine_frame_transforms(
+        root_pos_inv,
+        root_quat_inv,
+        body_pose_w[:, :3],
+        body_pose_w[:, 3:],
+    )
+    return body_pose_b
 
 # def asset_in_fov(env: ManagerBasedRLEnv,
 #                  camera_cfg: TiledCameraCfg,

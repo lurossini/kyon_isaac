@@ -18,7 +18,7 @@ from isaaclab.managers import CommandTermCfg
 from isaaclab.assets import Articulation
 from isaaclab.managers import CommandTerm
 from isaaclab.markers import VisualizationMarkers
-from isaaclab.utils.math import combine_frame_transforms, compute_pose_error, quat_from_euler_xyz, quat_unique
+from isaaclab.utils.math import combine_frame_transforms, compute_pose_error, quat_from_euler_xyz, quat_unique, quat_conjugate, quat_apply
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
@@ -52,6 +52,7 @@ class UniformPoseCommand(CommandTerm):
         # -- commands: (x, y, z, qw, qx, qy, qz) in root frame
         self.pose_command_w = torch.zeros(self.num_envs, 7, device=self.device)
         self.pose_command_w[:, 3] = 1.0
+        self.pose_command_b = torch.zeros_like(self.pose_command_w)
         # -- metrics
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["orientation_error"] = torch.zeros(self.num_envs, device=self.device)
@@ -72,7 +73,7 @@ class UniformPoseCommand(CommandTerm):
 
         The first three elements correspond to the position, followed by the quaternion orientation in (w, x, y, z).
         """
-        return self.pose_command_w
+        return self.pose_command_b
 
     """
     Implementation specific functions.
@@ -97,7 +98,7 @@ class UniformPoseCommand(CommandTerm):
         self.metrics["orientation_error"] = torch.norm(rot_error, dim=-1)
 
     def _resample_command(self, env_ids: Sequence[int]):
-        # sample new pose targets
+        # sample new pose targets in world frame
         # -- position
         r = torch.empty(len(env_ids), device=self.device)
         self.pose_command_w[env_ids, 0] = self._env.scene.env_origins[env_ids, 0] + r.uniform_(*self.cfg.ranges.pos_x)
@@ -113,7 +114,14 @@ class UniformPoseCommand(CommandTerm):
         self.pose_command_w[env_ids, 3:] = quat_unique(quat) if self.cfg.make_quat_unique else quat
 
     def _update_command(self):
-        pass
+        root_quat_inv = quat_conjugate(self.robot.data.root_quat_w)
+        root_pos_inv = -quat_apply(root_quat_inv, self.robot.data.root_pos_w)
+        self.pose_command_b[:, :3], self.pose_command_b[:, 3:] = combine_frame_transforms(
+            root_pos_inv,
+            root_quat_inv,
+            self.pose_command_w[:, :3],
+            self.pose_command_w[:, 3:],
+        )
 
     def _set_debug_vis_impl(self, debug_vis: bool):
         # create markers if necessary for the first time

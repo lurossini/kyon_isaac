@@ -55,3 +55,13 @@ def target_pos_levels(
 ):
     asset: Articulation = env.scene[asset_cfg.name]
     command_term: CommandTerm = env.command_manager.get_term(command_name)
+
+    # compute distance from the target
+    distance = torch.norm(command_term.command[:, :3] - asset.data.body_link_pos_w, dim=-1)
+    
+    # check envs in which the robot has got closer to the goal
+    move_up = distance < 0.1
+    move_down = distance > 0.1
+    
+    command_term.cfg.ranges.pos_x[0] -= 1
+

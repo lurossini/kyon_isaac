@@ -92,13 +92,13 @@ class KyonObservationsMjxCfg:
         )
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         joint_pos = ObsTerm(
-            func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05)
+            func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}, noise=Unoise(n_min=-0.05, n_max=0.05)
         )
         joint_pos_error_history = ObsTerm(
             func=kyon_mdp.joint_pos_error, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=3
         )
         joint_vel = ObsTerm(
-            func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
+            func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}, noise=Unoise(n_min=-0.5, n_max=0.5)
         )
         # joint_effort = ObsTerm(
         #     func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
@@ -130,7 +130,7 @@ class KyonObservationsMjxCfg:
         )
 
         joint_effort = ObsTerm(
-            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}
+            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}
         )
         def __post_init__(self):
             self.enable_corruption = False
@@ -390,6 +390,7 @@ class KyonTerminationsCfg:
         func=mdp.illegal_contact,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis"]), "threshold": 1.0},
     )
+    arms_contact = None
     terrain_out_of_bounds = DoneTerm(
         func=mdp.terrain_out_of_bounds,
         params={"asset_cfg": SceneEntityCfg("robot"), "distance_buffer": 3.0},
