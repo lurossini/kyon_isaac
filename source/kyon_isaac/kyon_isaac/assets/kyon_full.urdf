@@ -68,7 +68,7 @@
     <child link="imu_link"/>
   </joint>
   <!-- CAMERA BASE FRAMES -->
-  <link name="zed_front_up_mount_link"/>
+  <!-- <link name="zed_front_up_mount_link"/>
   <joint name="zed_front_up_mount_joint" type="fixed">
     <parent link="pelvis"/>
     <child link="zed_front_up_mount_link"/>
@@ -91,14 +91,14 @@
     <parent link="pelvis"/>
     <child link="right_camera_mount_link"/>
     <origin rpy="0 0.3490656 -1.5707963" xyz="0 -0.150100 0.109486"/>
-  </joint>
+  </joint> -->
   <!-- Velodyne -->
-  <link name="hesai_lidar"/>
+  <!-- <link name="hesai_lidar"/>
   <joint name="hesai_lidar_joints" type="fixed">
     <origin rpy="0 0 0.5220063" xyz="0.43 0 0.118"/>
     <parent link="pelvis"/>
     <child link="hesai_lidar"/>
-  </joint>
+  </joint> -->
   <link name="shoulder_yaw_1_link">
     <inertial>
       <origin xyz="-0.00036680683 -0.00091946646 0.039513613999999996"/>
@@ -112,6 +112,12 @@
       </geometry>
       <material name="dark_grey"/>
     </visual>
+    <!-- <collision>
+      <origin xyz="0.0 0.0 0.0"  rpy="0.0 0.0 0.0"/>
+        <geometry>
+          <mesh filename="./meshes/collision/mesh_sh_yaw.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+	  </collision> -->
   </link>
   <link name="shoulder_pitch_1_link">
     <inertial>
@@ -131,6 +137,14 @@
       </geometry>
       <material name="kyon_orange"/>
     </visual>
+    <collision>
+		<origin xyz="0 -0.15 0"/>
+	  	<geometry>
+			<!-- <mesh filename="package://kyon_urdf/meshes/collision/mesh_sh-pitch.stl" scale="0.001 0.001 0.001"/> -->
+			<box size="0.05 0.3 0.025"/>
+		</geometry>
+		<material name="kyon_orange"/>
+	</collision>
   </link>
   <link name="elbow_pitch_1_link">
     <inertial>
@@ -144,6 +158,13 @@
       </geometry>
       <material name="dark_grey"/>
     </visual>
+    <collision>
+		<origin xyz="0 -0.15 0.035"/>
+		<geometry>
+			<!-- <mesh filename="package://kyon_urdf/meshes/mesh_elbow.stl" scale="0.001 0.001 0.001"/> -->
+			<box size="0.05 0.3 0.025"/>
+		</geometry>
+	</collision>
   </link>
   <link name="wrist_pitch_1_link">
     <inertial>
@@ -158,6 +179,13 @@
       </geometry>
       <material name="dark_grey"/>
     </visual>
+    <collision>
+		<origin xyz="0 -0.05 0"/>
+		<geometry>
+			<!-- <mesh filename="package://kyon_urdf/meshes/collision/mesh_wrist-pitch.stl" scale="0.001 0.001 0.001"/> -->
+			<box size="0.05 0.1 0.025"/>
+		</geometry>
+	</collision>
   </link>
   <link name="wrist_yaw_1_link">
     <inertial>
@@ -172,6 +200,12 @@
       </geometry>
       <material name="dark_grey"/>
     </visual>
+    <!-- <collision>
+      <origin xyz="0.0 0.0 0.0"  rpy="0.0 0.0 0.0"/>
+      <geometry>
+        <mesh filename="./meshes/collision/mesh_wrist_yaw.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision> -->
   </link>
   <joint name="shoulder_yaw_1" type="revolute">
     <parent link="pelvis"/>
