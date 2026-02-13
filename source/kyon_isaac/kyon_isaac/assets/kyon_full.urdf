@@ -68,13 +68,13 @@
     <child link="imu_link"/>
   </joint>
   <!-- CAMERA BASE FRAMES -->
-  <!-- <link name="zed_front_up_mount_link"/>
+  <link name="zed_front_up_mount_link"/>
   <joint name="zed_front_up_mount_joint" type="fixed">
     <parent link="pelvis"/>
     <child link="zed_front_up_mount_link"/>
     <origin rpy="0 -0.1745327 0" xyz="0.526174 0 0.0674608"/>
   </joint>
-  <link name="zed_front_down_mount_link"/>
+  <!-- <link name="zed_front_down_mount_link"/>
   <joint name="zed_front_down_mount_joint" type="fixed">
     <parent link="pelvis"/>
     <child link="zed_front_down_mount_link"/>

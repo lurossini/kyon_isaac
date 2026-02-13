@@ -25,6 +25,7 @@ from isaaclab.controllers.differential_ik_cfg import DifferentialIKControllerCfg
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.navigation.mdp as navigation_mdp
+from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg, TiledCameraCfg
 
 from kyon_isaac.tasks.locomotion.velocity.config.spot.flat_env_cfg import KyonFullFlatEnvCfg, KyonFullFlatEnvCfg_PLAY, KyonCommandsCfg, KyonActionsCfg, KyonRewardsCfg, KyonTerminationsCfg, KyonObservationsMjxCfg
 
@@ -87,7 +88,8 @@ class ActionsCfg:
         # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/new_locomotion_roll_015_no_arms/exported/policy.pt",
         # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-07_15-04-08/exported/policy.pt",
         # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-21_02-30-02/exported/policy.pt",
-        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-29_10-29-56/exported/policy.pt",
+        # policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-01-29_10-29-56/exported/policy.pt",
+        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-02-02_08-41-17/exported/policy.pt",
         low_level_decimation=1,
         low_level_actions=KYON_FULL_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
@@ -249,9 +251,34 @@ class ObservationCfg:
             self.enable_corruption = False
             self.concatenate_terms = True
 
+    @configclass
+    class RGBDCameraCfg(ObsGroup):
+        """Observations for policy group with RGB images."""
+
+        front_up_cam_image = ObsTerm(
+            func=mdp.image,
+            params={
+                "sensor_cfg": SceneEntityCfg("front_up_camera"), 
+                "data_type": "rgb", 
+                "normalize": False}
+        )
+
+        front_up_cam_depth = ObsTerm(
+            func=mdp.image,
+            params={
+                "sensor_cfg": SceneEntityCfg("front_up_camera"), 
+                "data_type": "distance_to_image_plane", 
+                "normalize": True}
+        )
+
+        def __post_init__(self):
+            self.enable_corruption = True
+            self.concatenate_terms = True
+
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
+    rgbd: RGBDCameraCfg = RGBDCameraCfg()
 
 
 @configclass
@@ -289,27 +316,51 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
                 "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_2", "shoulder_pitch_2", "elbow_pitch_2", "wrist_pitch_2", "wrist_yaw_2", "dagana_.*"])
             },
         )
-        # self.episode_length_s = 2.0
+
+        self.scene.front_up_camera = TiledCameraCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
+            update_period=0.0333,
+            height=600,
+            width=860,
+            data_types=["rgb", "distance_to_image_plane"],
+            debug_vis=True,
+            spawn=sim_utils.PinholeCameraCfg(
+                focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+            ),
+            offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+            depth_clipping_behavior="max",
+        )
+        self.image_obs_list = ["front_up_camera"]
 
         # # Table
-        # self.scene.packing_table = AssetBaseCfg(
-        #     prim_path="/World/envs/env_.*/PackingTable",
-        #     init_state=AssetBaseCfg.InitialStateCfg(pos=[0.0, 0.55, -0.3], rot=[1.0, 0.0, 0.0, 0.0]),
-        #     spawn=UsdFileCfg(
-        #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/PackingTable/packing_table.usd",
-        #         rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
-        #     ),
-        # )
+        self.scene.packing_table = AssetBaseCfg(
+            prim_path="/World/envs/env_.*/PackingTable",
+            init_state=AssetBaseCfg.InitialStateCfg(pos=[0.0, 0.55, -0.3], rot=[1.0, 0.0, 0.0, 0.0]),
+            spawn=UsdFileCfg(
+                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/PackingTable/packing_table.usd",
+                rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+            ),
+        )
 
-        # self.scene.object = RigidObjectCfg(
-        #     prim_path="{ENV_REGEX_NS}/Object",
-        #     init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.35, 0.45, 0.6996], rot=[1, 0, 0, 0]),
-        #     spawn=UsdFileCfg(
-        #         usd_path=f"{ISAACLAB_NUCLEUS_DIR}/Mimic/pick_place_task/pick_place_assets/steering_wheel.usd",
-        #         scale=(0.75, 0.75, 0.75),
-        #         rigid_props=sim_utils.RigidBodyPropertiesCfg(),
-        #     ),
-        # )
+        self.scene.object = RigidObjectCfg(
+            prim_path="{ENV_REGEX_NS}/Object",
+            init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.35, 0.45, 0.6996], rot=[1, 0, 0, 0]),
+            spawn=UsdFileCfg(
+                usd_path=f"{ISAACLAB_NUCLEUS_DIR}/Mimic/pick_place_task/pick_place_assets/steering_wheel.usd",
+                scale=(0.75, 0.75, 0.75),
+                rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+            ),
+        )
+
+        self.scene.mug = AssetBaseCfg(
+            prim_path="{ENV_REGEX_NS}/Mug",
+            init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.35, 0.45, 1.], rot=[1, 0, 0, 0]),
+            spawn=UsdFileCfg(
+                usd_path=f"https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/Props/Mugs/SM_Mug_D1.usd",
+                # scale=(0.75, 0.75, 0.75),
+                rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+            ),
+        )
 
 @configclass
 class LocomanipulationKyonSceneCfg_PLAY(LocomanipulationKyonSceneCfg):
@@ -318,5 +369,14 @@ class LocomanipulationKyonSceneCfg_PLAY(LocomanipulationKyonSceneCfg):
 
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
+        self.scene.terrain.max_init_terrain_level = None
+        self.episode_length_s = 100000
+
+        # reduce the number of terrains to save memory
+        if self.scene.terrain.terrain_generator is not None:
+            self.scene.terrain.terrain_generator.num_rows = 5
+            self.scene.terrain.terrain_generator.num_cols = 5
+            self.scene.terrain.terrain_generator.curriculum = False
+
         # disable randomization for play
         self.observations.policy.enable_corruption = False
