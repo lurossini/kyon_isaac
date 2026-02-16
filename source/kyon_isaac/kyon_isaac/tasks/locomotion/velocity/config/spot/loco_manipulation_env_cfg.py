@@ -29,6 +29,8 @@ from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg, TiledCameraCfg
 
 from kyon_isaac.tasks.locomotion.velocity.config.spot.flat_env_cfg import KyonFullFlatEnvCfg, KyonFullFlatEnvCfg_PLAY, KyonCommandsCfg, KyonActionsCfg, KyonRewardsCfg, KyonTerminationsCfg, KyonObservationsMjxCfg
 
+from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_FULL_BODY_CFG_TRAIN
+
 import kyon_isaac
 from pathlib import Path
 KYON_FULL_BODY_ENV_CFG = KyonFullFlatEnvCfg()
@@ -79,6 +81,17 @@ class CommandsCfg:
     #         yaw=(-1.6, -1.4),
     #     ),
     # )
+
+@configclass
+class CommandsVLMCfg:
+
+    left_ee_pose = kyon_mdp.PoseCommandCfg(
+        asset_name="robot",
+        camera_frame="zed_front_up_mount_link",
+        body_name="wrist_yaw_1_link",
+        debug_vis=True,
+        resampling_time_range=(8.0, 8.0),
+    )
 
 @configclass
 class ActionsCfg:
@@ -140,10 +153,10 @@ class RewardsCfg:
 
     left_ee_pos_tracking_fine_grained = RewTerm(
         func=kyon_mdp.position_command_error_gauss,
-        weight=2.0,
+        weight=5.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-            "std": 0.5,
+            "std": 0.25,
             "command_name": "left_ee_pose",
         },
     )
@@ -364,6 +377,9 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
 
 @configclass
 class LocomanipulationKyonSceneCfg_PLAY(LocomanipulationKyonSceneCfg):
+
+    # commands: CommandsVLMCfg = CommandsVLMCfg()
+
     def __post_init__(self):
         super().__post_init__()
 

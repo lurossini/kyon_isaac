@@ -19,14 +19,16 @@ from isaaclab.app import AppLauncher
 import cli_args  # isort: skip
 
 class ZMQIO:    
+    # REMOTE_IP: str = "localhost"
+    REMOTE_IP = "10.240.23.24"      # Threadripper
 
     def __init__(self):
         context = zmq.Context()
         self.__socket_pull = context.socket(zmq.PULL)
-        self.__socket_pull.connect("tcp://10.240.23.24:5555")
+        self.__socket_pull.connect(f"tcp://{self.REMOTE_IP}:5555")
         self.__socket_pull.setsockopt(zmq.CONFLATE, 1)
         self.__socket_push = context.socket(zmq.PUSH)
-        self.__socket_push.connect("tcp://10.240.23.24:5556")
+        self.__socket_push.connect(f"tcp://{self.REMOTE_IP}:5556")
 
         self.__latest_image_sent = None
         self.__get_new_image = True
@@ -106,8 +108,8 @@ class ZMQIO:
                     "- box_2d in [x1, y1, x2, y2] in normalized coordinates.\n"
         }
 
-        if counter % 10 == 0:
-            self.__socket_push.send_multipart([json.dumps(meta).encode("utf-8"), frame_depth.tobytes()])
+        # if counter % 10 == 0:
+        self.__socket_push.send_multipart([json.dumps(meta).encode("utf-8"), frame_depth.tobytes()])
 
 
     def get_sent_image(self, seq: int):
@@ -251,14 +253,23 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     focal_length_cm = env_cfg.scene.front_up_camera.spawn.focal_length
     h_aperture = env_cfg.scene.front_up_camera.spawn.horizontal_aperture 
     v_aperture = env_cfg.scene.front_up_camera.spawn.vertical_aperture
+
     if v_aperture is None:
         v_aperture = h_aperture * (height / width)
+
+    print(f'width: {width}')
+    print(f'height: {height}')
+    print(f'h_aperture: {h_aperture}')
+    print(f'v_aperture: {v_aperture}')
 
     # Pixel size and focal length: if the pixel is square, sx = sy and fx = fy
     sx = h_aperture / width         # horizontal pixel size
     sy = v_aperture / height        # vertical pixel size
     fx = focal_length_cm / sx       # horizontal focal length in pixels
     fy = focal_length_cm / sy       # vertical focal length in pixels
+
+    print(f'sx: {sx}')
+    print(f'sy: {sy}')
 
     # Compute intrinsic matrix
     K = torch.tensor([[fx, 0, width/2], [0, fy, height/2], [0, 0, 1]], device=args_cli.device)
@@ -324,6 +335,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     timestep = 0
     ref = [0., 0., 0.]
     counter = 0
+    detected = False
 
     # simulate environment
     while simulation_app.is_running():
@@ -335,12 +347,23 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                 latest_detection = zmq_io.get_latest_detection
             if latest_detection is not None:
                 if latest_detection['detected'] == True:
+                    print(latest_detection['bbox_pixels'])
                     x_center = int((latest_detection['bbox_pixels'][0] + latest_detection['bbox_pixels'][2]) / 2)
                     y_center = int((latest_detection['bbox_pixels'][1] + latest_detection['bbox_pixels'][3]) / 2)
                     depth = zmq_io.get_sent_image(latest_detection['seq'])[y_center, x_center, 3]
                     x_obj = (x_center - width/2) * depth / fx
-                    y_obj = (x_center - height/2) * depth / fy
-                    print(f'Estimated position: {x_obj}, {y_obj}, {depth}')
+                    y_obj = (y_center - height/2) * depth / fy
+                    y_obj_camera = -x_obj
+                    z_obj_camera = -y_obj
+                    x_obj_camera = depth
+                    print(f'Estimated position: {x_obj_camera}, {y_obj_camera}, {z_obj_camera}')
+                    cmd = torch.tensor([x_obj_camera, y_obj_camera, z_obj_camera, 0, 0, 0, 1])   # ignore orientation tracking
+                    if torch.norm(cmd[:3]) < 4:
+                        env.unwrapped.command_manager.get_term('left_ee_pose').set_command(cmd.unsqueeze(0).repeat(env.unwrapped.num_envs, 1).float())
+                        detected = True
+                else:
+                    # env.unwrapped.command_manager.get_term('left_ee_pose').reset_command()
+                    detected = False
 
             # agent stepping
             actions = policy(obs)
@@ -353,13 +376,11 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                         ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
                     except zmq.Again:
                         break    
-                if np.linalg.norm(np.array(ref)) > 0.1: 
+                if not detected: 
                     torch_ref = torch.tensor(ref)
-                    # obs['policy'][0, 6:9] = torch.Tensor(ref) 
-                    env.unwrapped.action_manager.get_term("pre_trained_policy_action").process_actions(torch_ref.unsqueeze(0).repeat(env.unwrapped.num_envs, 1))
+                    actions[:, :3] = torch_ref.unsqueeze(0).repeat(env.unwrapped.num_envs, 1)
 
             # env stepping
-            print(actions.detach().cpu().numpy())
             obs, _, _, _ = env.step(actions)
 
 

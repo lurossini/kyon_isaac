@@ -101,15 +101,10 @@ if args_cli.interactive:
 
 import zmq
 import cv2
+import json
 
 import numpy as np 
 np.set_printoptions(suppress=True, precision=3)
-
-context = zmq.Context()
-socket_rgb = context.socket(zmq.PUSH)
-socket_rgb.connect("tcp://localhost:5555")
-socket_depth = context.socket(zmq.PUSH)
-socket_depth.connect("tcp://localhost:5556")
 
 @hydra_task_config(args_cli.task, args_cli.agent)
 def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
@@ -121,8 +116,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # override configurations with non-hydra CLI arguments
     agent_cfg: RslRlBaseRunnerCfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
     env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
-    
-    
 
     # set the environment seed
     # note: certain randomizations occur in the environment initialization so we set the seed here
@@ -208,6 +201,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     obs = env.get_observations()
     timestep = 0
     ref = [0., 0., 0.]
+
     # simulate environment
     while simulation_app.is_running():
         start_time = time.time()
@@ -215,45 +209,19 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
+
             # env stepping
             obs, _, _, _ = env.step(actions)
-            obsvec = obs['policy'].flatten()
-            # print('---')
-            # print('ang vel', obsvec[0:3])
-            # print('proj grav', obsvec[3:6])
-            # print('vel cmd', obsvec[6:9])
-            # print('joint pos', obsvec[9:31])
-            # print('joint vel', obsvec[31:55])
-            # print('action', obsvec[55:67])
-            # print('---')
-
-            # send camera views
-            if "rgb" in obs.keys():
-                frame = obs['rgb'][0, :, :, :3]
-                frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
-                _, jpg = cv2.imencode(".jpg", frame_bgr)
-                socket_rgb.send(jpg.tobytes())
-
-                frame_depth = obs['rgb'][0, :, :, 3]
-                _, jpg_depth = cv2.imencode(".jpg", frame_depth.cpu().numpy())
-                socket_depth.send(jpg_depth.tobytes())
-
-                # print error
-                latent = policy_nn.get_latent(obs) # type: ignore
-                confidence = torch.sigmoid(latent[:, -1])
-                latent[:, -1] = confidence
-                print(f'error: {(obs["critic"][:, 3:] - latent).cpu().numpy()}')
-
-            # joy
             if args_cli.interactive:
-                    while True:
-                        try:
-                            msg = socket.recv(flags=zmq.NOBLOCK)
-                            rx_msg.ParseFromString(msg)
-                            ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
-                        except zmq.Again:
-                            break     
-                    obs['critic'][0, 6:9] = torch.Tensor(ref) 
+                while True:
+                    try:
+                        msg = socket.recv(flags=zmq.NOBLOCK)
+                        rx_msg.ParseFromString(msg)
+                        ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
+                    except zmq.Again:
+                        break     
+                obs['policy'][0, 6:9] = torch.Tensor(ref) 
+            obsvec = obs['policy'].flatten()
 
         if args_cli.video:
             timestep += 1
@@ -265,6 +233,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         sleep_time = dt - (time.time() - start_time)
         if args_cli.real_time and sleep_time > 0:
             time.sleep(sleep_time)
+
+        counter += 1
 
     # close the simulator
     env.close()

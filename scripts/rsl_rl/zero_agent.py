@@ -38,12 +38,14 @@ from isaaclab_tasks.utils import parse_env_cfg
 
 import zmq
 import cv2
+import json
 
 context = zmq.Context()
-socket_rgb = context.socket(zmq.PUSH)
-socket_rgb.connect("tcp://localhost:5555")
-socket_depth = context.socket(zmq.PUSH)
-socket_depth.connect("tcp://localhost:5556")
+socket_pull = context.socket(zmq.PULL)
+socket_pull.connect("tcp://10.240.23.24:5555")
+socket_push = context.socket(zmq.PUSH)
+socket_push.connect("tcp://10.240.23.24:5556")
+
 # PLACEHOLDER: Extension template (do not remove this comment)
 
 
@@ -69,11 +71,29 @@ def main():
             actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
             # apply actions
             obs = env.step(actions)
-            if 'rgb' in obs[0].keys():
-                frame = obs[0]['rgb'][0, :, :, :3]
-                frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
-                ret, jpg = cv2.imencode(".jpg", frame_bgr)
-                socket_rgb.send(jpg.tobytes())
+            if "rgbd" in obs[0].keys():
+                # frame = obs[0]['rgbd'][0, :, :, :3]
+                # frame_bgr = cv2.cvtColor(frame.cpu().numpy(), cv2.COLOR_RGB2BGR)
+                # _, jpg = cv2.imencode(".jpg", frame_bgr)
+                # socket_rgb.send(jpg.tobytes())
+
+                frame_depth = obs[0]['rgbd'][0, :, :, :]
+                frame_depth = frame_depth.detach().cpu().contiguous()
+                # _, jpg_depth = cv2.imencode(".jpg", frame_depth.cpu().numpy())
+                
+                meta = {
+                    "type": "rgbd",
+                    "dtype": str(frame_depth.numpy().dtype),
+                    "shape": frame_depth.numpy().shape,
+                    "note": "what do you see in this image?"
+                }
+
+                socket_push.send_multipart([json.dumps(meta).encode("utf-8"), frame_depth.numpy().tobytes()])
+
+                if socket_pull.poll(0, zmq.POLLIN):
+                    response = socket_pull.recv_string()
+                    print(response)
+
 
     # close the simulator
     env.close()
