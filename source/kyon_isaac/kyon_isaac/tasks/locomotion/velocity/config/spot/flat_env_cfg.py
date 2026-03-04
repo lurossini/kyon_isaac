@@ -13,9 +13,11 @@ from isaaclab.managers import RewardTermCfg, SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
-from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg
+from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg, TiledCameraCfg
+from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
+from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
@@ -28,8 +30,8 @@ import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
 ##
 # Pre-defined configs
 ##
-from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_FULL_BODY_CFG_TRAIN
-from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_FULL_BODY_CFG_PLAY
+from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_FULL_BODY_CFG_TRAIN, KYON_FULL_BODY_NO_ARMS_COLLISION_CFG_TRAIN
+from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_FULL_BODY_CFG_PLAY, KYON_FULL_BODY_NO_ARMS_COLLISION_CFG_PLAY
 
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
@@ -55,7 +57,6 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
 class KyonActionsCfg:
     """Action specifications for the MDP."""
     joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.5, use_default_offset=True)
-    # joint_pos_arms = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*"], scale=1.0, use_default_offset=True)
 
 @configclass
 class KyonCommandsCfg:
@@ -67,7 +68,7 @@ class KyonCommandsCfg:
         rel_standing_envs=0.1,
         rel_heading_envs=0.0,
         heading_command=False,
-        debug_vis=False,
+        debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
             lin_vel_x=(-1.5, 1.5), lin_vel_y=(-1., 1.), ang_vel_z=(-1.5, 1.5)
         ),
@@ -124,7 +125,7 @@ class KyonObservationsMjxCfg:
 
         contact_forces = ObsTerm(
             func=kyon_mdp.contact_forces, 
-            params={
+            params={ 
                 "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")
             }, 
         )
@@ -136,9 +137,35 @@ class KyonObservationsMjxCfg:
             self.enable_corruption = False
             self.concatenate_terms = True
 
+    # @configclass
+    # class RGBDCameraCfg(ObsGroup):
+    #     """Observations for policy group with RGB images."""
+
+    #     front_up_cam_image = ObsTerm(
+    #         func=mdp.image,
+    #         params={
+    #             "sensor_cfg": SceneEntityCfg("front_up_camera"), 
+    #             "data_type": "rgb", 
+    #             "normalize": False}
+    #     )
+
+    #     front_up_cam_depth = ObsTerm(
+    #         func=mdp.image,
+    #         params={
+    #             "sensor_cfg": SceneEntityCfg("front_up_camera"), 
+    #             "data_type": "distance_to_image_plane", 
+    #             "normalize": True}
+    #     )
+
+    #     def __post_init__(self):
+    #         self.enable_corruption = True
+    #         self.concatenate_terms = True
+
+
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
+    # rgbd: RGBDCameraCfg = RGBDCameraCfg()
 
 @configclass
 class KyonObservationsCfg:
@@ -359,7 +386,7 @@ class KyonRewardsCfg:
         # weight=-0.7,
         weight=-1.4,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names="hip_roll_.*"),
+            "asset_cfg": SceneEntityCfg("robot"), # , joint_names="hip_roll_.*"),
             "stand_still_scale": 5.0,
             "velocity_threshold": 0.5,
         },
@@ -388,7 +415,7 @@ class KyonTerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     body_contact = DoneTerm(
         func=mdp.illegal_contact,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis"]), "threshold": 1.0},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis", "knee_pitch_.*"]), "threshold": 1.0},
     )
     arms_contact = None
     terrain_out_of_bounds = DoneTerm(
@@ -412,7 +439,7 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
     events: KyonEventCfg = KyonEventCfg()
 
     # Viewer
-    viewer = ViewerCfg(eye=(10.5, 10.5, 0.3), origin_type="world", env_index=0, asset_name="robot")
+    viewer = ViewerCfg(eye=(-1.5, -4.5, 0.3), origin_type="world", env_index=0, asset_name="robot")
 
     # Imu
     
@@ -488,6 +515,8 @@ class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
 
         # disable randomization for play
         self.observations.policy.enable_corruption = False
+
+       
         # remove random pushing event
 
 class KyonFullFlatEnvCfg(KyonFlatEnvCfg):
@@ -495,11 +524,12 @@ class KyonFullFlatEnvCfg(KyonFlatEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
-        self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_FULL_BODY_NO_ARMS_COLLISION_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         self.events.reset_arms = EventTerm(
-            func=kyon_mdp.reset_joint_target_to_default, 
-            mode="startup",
+            func=kyon_mdp.random_joint_position_velocity, 
+            mode="interval",
+            interval_range_s=(0.5, 0.5),
             params={
                 "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
             },
@@ -509,4 +539,68 @@ class KyonFullFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
-        self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_FULL_BODY_NO_ARMS_COLLISION_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.episode_length_s = 100
+
+        self.events.reset_arms = EventTerm(
+            func=kyon_mdp.reset_joint_target_to_default, 
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
+            },
+        )
+
+        # self.events.reset_arms = EventTerm(
+        #     func=kyon_mdp.random_joint_position_velocity, 
+        #     mode="interval",
+        #     interval_range_s=(0.5, 0.5),
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
+        #     },
+        # )
+
+
+        # self.scene.front_up_camera = TiledCameraCfg(
+        #     prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
+        #     update_period=0.0333,
+        #     height=600,
+        #     width=860,
+        #     data_types=["rgb", "distance_to_image_plane"],
+        #     debug_vis=True,
+        #     spawn=sim_utils.PinholeCameraCfg(
+        #         focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+        #     ),
+        #     offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+        #     depth_clipping_behavior="max",
+        # )
+        # self.image_obs_list = ["front_up_camera"]
+
+        # # # Table
+        # self.scene.packing_table = AssetBaseCfg(
+        #     prim_path="/World/envs/env_.*/PackingTable",
+        #     init_state=AssetBaseCfg.InitialStateCfg(pos=[0.0, 0.55, -0.3], rot=[1.0, 0.0, 0.0, 0.0]),
+        #     spawn=UsdFileCfg(
+        #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/PackingTable/packing_table.usd",
+        #         rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+        #     ),
+        # )
+
+        # self.scene.object = RigidObjectCfg(
+        #     prim_path="{ENV_REGEX_NS}/Object",
+        #     init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.35, 0.45, 0.6996], rot=[1, 0, 0, 0]),
+        #     spawn=UsdFileCfg(
+        #         usd_path=f"{ISAACLAB_NUCLEUS_DIR}/Mimic/pick_place_task/pick_place_assets/steering_wheel.usd",
+        #         scale=(0.75, 0.75, 0.75),
+        #         rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+        #     ),
+        # )
+
+        # self.scene.mug = AssetBaseCfg(
+        #     prim_path="{ENV_REGEX_NS}/Mug",
+        #     init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.35, 0.45, 1.], rot=[1, 0, 0, 0]),
+        #     spawn=UsdFileCfg(
+        #         usd_path=f"https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/Props/Mugs/SM_Mug_D1.usd",
+        #         # scale=(0.75, 0.75, 0.75),
+        #         rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+        #     ),
+        # )

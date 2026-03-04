@@ -117,6 +117,8 @@ def get_relative_pose(env: ManagerBasedRLEnv,
     )
     return body_pose_b
 
+
+
 # def asset_in_fov(env: ManagerBasedRLEnv,
 #                  camera_cfg: TiledCameraCfg,
 #                  asset_cfg: SceneEntityCfg) -> torch.Tensor:

@@ -79,6 +79,17 @@ def joint_position_penalty(
     reward = torch.linalg.norm((asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]), dim=1)
     return torch.where(cmd > 0.0, reward, stand_still_scale * reward)
 
+def joint_position_on_wheels_penalty(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, stand_still_scale: float, velocity_threshold: float
+) -> torch.Tensor:
+    """Penalize joint position error from default on the articulation."""
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    cmd = torch.linalg.norm(env.command_manager.get_command("base_velocity"), dim=1)
+    body_vel = torch.linalg.norm(asset.data.root_lin_vel_b[:, :2], dim=1)
+    reward = torch.linalg.norm((asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]), dim=1)
+    return stand_still_scale * reward
+
 def cost_orientation_with_gravity(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg
 ) -> torch.Tensor:
@@ -101,6 +112,23 @@ def goal_reached(
     sigma = 2.5
     return torch.exp(-((distance - threshold)**2) / (2 * sigma**2))
 
+def goal_reached_command(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    command_name: str,
+    std: float,
+    threshold: float
+) -> torch.Tensor:
+    robot: Articulation = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    # obtain the desired and current positions
+    des_pos_b = command[:, :3]
+    des_pos_w, _ = math.combine_frame_transforms(robot.data.root_pos_w, robot.data.root_quat_w, des_pos_b)
+
+    curr_pos_w = robot.data.root_pos_w
+    distance = torch.norm(des_pos_w[:, :2] - curr_pos_w[:, :2], dim=1)
+    return torch.exp(-((distance - threshold)**2) / (2 * std**2))
+
 def orient_towards_goal(
     env: ManagerBasedRLEnv,
     source_asset_cfg: SceneEntityCfg,
@@ -120,6 +148,41 @@ def orient_towards_goal(
     sigma = 0.3
     return torch.exp(-(angle**2) / (2 * sigma**2))
 
+
+def orientation_command_error(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize tracking orientation error using shortest path.
+
+    The function computes the orientation error between the desired orientation (from the command) and the
+    current orientation of the asset's body (in world frame). The orientation error is computed as the shortest
+    path between the desired and current orientations.
+    """
+    # extract the asset (to enable type hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    body_idx = asset.find_bodies(asset_cfg.body_names)[0][0]
+    # obtain the desired and current orientations
+    des_quat_b = command[:, 3:7]
+    des_quat_w = math.quat_mul(asset.data.root_quat_w, des_quat_b)
+    curr_quat_w = asset.data.body_quat_w[:, body_idx]  # type: ignore
+    return math.quat_error_magnitude(curr_quat_w, des_quat_w)
+
+def maximise_contact_time(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+) -> torch.Tensor:
+    """Reward longer feet air and contact time."""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    if contact_sensor.cfg.track_air_time is False:
+        raise RuntimeError("Activate ContactSensor's track_air_time!")
+    # compute the reward
+    current_contact_time = contact_sensor.data.current_contact_time[:, sensor_cfg.body_ids]
+    cmd = torch.norm(env.command_manager.get_command("base_velocity")[:, 1:3], dim=1)
+    reward = torch.where(cmd > 0.0, torch.sum(current_contact_time, dim=1), 0)
+
+    return reward
+
+
 def test_hierarchy(
     env: ManagerBasedRLEnv,
     **rewards: RewardTermCfg
@@ -132,11 +195,125 @@ def test_hierarchy(
     old_rew = None
     for rew_term in rewards.values():
         if old_rew is not None:
-            rew = old_rew + rew_term.weight * old_rew * rew_term.func(env, **rew_term.params) 
+            if isinstance(rew_term, list):
+                rew_sum = 0
+                for r in rew_term:
+                    rew_sum += r.weight * r.func(env, **r.params) 
+                rew = old_rew + old_rew * rew_sum
+            else:
+                rew = old_rew + rew_term.weight * old_rew * rew_term.func(env, **rew_term.params) 
         else:
-            old_rew = rew_term.func(env, **rew_term.params)
+            if isinstance(rew_term, list):
+                rew_sum = 0
+                for r in rew_term:
+                    rew_sum += r.weight * r.func(env, **r.params) 
+                old_rew = rew_sum
+            else:
+                old_rew = rew_term.func(env, **rew_term.params)
     
     return rew
+
+def joint_vel(env: ManagerBasedRLEnv, action_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")):
+    """The joint velocities of the asset.
+
+    Note: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their velocities returned.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    action = env.action_manager.get_term(action_name).processed_actions
+    return torch.where(torch.norm(action, dim=-1) < 0.1, torch.norm(asset.data.joint_vel[:, asset_cfg.joint_ids], dim=-1), 0)
+
+def action_regularization(env: ManagerBasedRLEnv, action_name:str):
+    action = env.action_manager.get_term(action_name).processed_actions
+    return torch.norm(action, dim=1)
+
+class Hierarchy(ManagerTermBase):
+
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+
+        if len(cfg.params["rewards"]) < 2:
+            raise RuntimeError("You should define a hierarchy with at least two rewards")
+    
+        self._rew_tree: dict = cfg.params["rewards"]        
+        self.metrics = dict()
+        # self.metrics = {name: torch.zeros(self.num_envs, device=self.device) for name in self._rew_dict.keys()}
+
+    def __call__(self, env, rewards):
+
+        total = None
+
+        for name, value in self._rew_tree.items():
+
+            if isinstance(value, dict):
+                level_rew = self._compute_node(value, prefix=name)
+
+            else:
+                level_rew = value.weight * value.func(self._env, **value.params)
+
+                if name not in self.metrics:
+                    self.metrics[name] = torch.zeros_like(level_rew)
+
+                self.metrics[name] += level_rew.detach() * self._env.step_dt
+
+            if total is None:
+                total = level_rew
+            else:
+                total = total + total * level_rew
+
+        return total
+    
+    def _compute_node(self, node, prefix=""):
+        """
+        Returns the summed reward of this level.
+        """
+
+        level_sum = 0.0
+
+        for name, value in node.items():
+
+            full_name = f"{prefix}/{name}" if prefix else name
+            # full_name = name
+
+            if isinstance(value, dict):
+                # nested level
+                rew = self._compute_node(value, prefix=full_name)
+
+            else:
+                # leaf reward
+                rew = value.weight * value.func(self._env, **value.params)
+
+                # accumulate episodic logging
+                if full_name not in self.metrics:
+                    self.metrics[full_name] = torch.zeros_like(rew)
+
+                self.metrics[full_name] += rew.detach() * self._env.step_dt
+
+            level_sum = level_sum + rew
+
+        return level_sum
+
+    def reset(self, env_ids=None):
+        if env_ids is None:
+            env_ids = slice(None)
+
+        extras = {}
+
+        for name, values in self.metrics.items():
+            episodic_sum_avg = torch.mean(self.metrics[name][env_ids])
+            extras[f"Episode_Reward/{name}"] = episodic_sum_avg / self._env.max_episode_length_s
+            self.metrics[name][env_ids] = 0.0
+
+        return extras
+    
+def joint_pos_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize joint velocities on the articulation using L2 squared kernel.
+
+    NOTE: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their joint velocities contribute to the term.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    return torch.sum(torch.square(asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]), dim=1)
 
 class GaitReward(ManagerTermBase):
     """Gait enforcing reward term for quadrupeds.
@@ -204,8 +381,11 @@ class GaitReward(ManagerTermBase):
         # only enforce gait if cmd > 0
         cmd = torch.norm(env.command_manager.get_command("base_velocity"), dim=1)
         body_vel = torch.linalg.norm(self.asset.data.root_lin_vel_b[:, :2], dim=1)
+        # return torch.where(
+        #     cmd > 0.0, sync_reward * async_reward, 0.0
+        # )
         return torch.where(
-            cmd > 0.0, sync_reward * async_reward, 0.0
+            torch.logical_or(cmd > 0.0, body_vel > self.velocity_threshold), sync_reward * async_reward, 0.0
         )
 
     """
@@ -278,6 +458,7 @@ def position_command_error_gauss(
     # obtain the desired and current positions
     des_pos_b = command[:, :3]
     des_pos_w, _ = math.combine_frame_transforms(asset.data.root_pos_w, asset.data.root_quat_w, des_pos_b)
-    curr_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids[0]]  # type: ignore
+    body_idx = asset.find_bodies(asset_cfg.body_names)[0][0]
+    curr_pos_w = asset.data.body_pos_w[:, body_idx]  # type: ignore
     distance = torch.norm(curr_pos_w - des_pos_w, dim=1)
     return torch.exp(-distance / std)

@@ -52,9 +52,9 @@ class CommandsCfg:
             pos_x=(-3, 3),
             pos_y=(-3, 3),
             pos_z=(0.3, 0.7),
-            roll=(-1.6, -1.4),
-            pitch=(0.0, 0.0),
-            yaw=(-1.6, -1.4),
+            roll=(0.0, 0.0),
+            pitch=(3.14, 3.14),
+            yaw=(-3.14, -3.14),
         ),
     )
 
@@ -133,53 +133,26 @@ class ActionsCfg:
 
 @configclass
 class RewardsCfg:
-    # left_ee_pos_tracking = RewTerm(
-    #     func=kyon_mdp.position_command_error,
-    #     weight=-0.1,
+
+    # left_pos_tracking = RewTerm(
+    #     func=kyon_mdp.position_command_error_gauss,
+    #     weight=2.0,
     #     params={
     #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+    #         "std": 1.0,
     #         "command_name": "left_ee_pose",
     #     },
     # )
-    left_ee_pos_tracking = RewTerm(
-        func=kyon_mdp.position_command_error_gauss,
-        weight=2.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-            "std": 1.0,
-            "command_name": "left_ee_pose",
-        },
-    )
 
-    left_ee_pos_tracking_fine_grained = RewTerm(
-        func=kyon_mdp.position_command_error_gauss,
-        weight=5.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-            "std": 0.25,
-            "command_name": "left_ee_pose",
-        },
-    )
-
-    # position_tracking = RewTerm(
-    #     func=navigation_mdp.position_command_error_tanh,
-    #     weight=0.5,
-    #     params={"std": 2.0, "command_name": "pose_command"},
+    # left_ee_pos_tracking_fine_grained = RewTerm(
+    #     func=kyon_mdp.position_command_error_gauss,
+    #     weight=5.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+    #         "std": 0.25,
+    #         "command_name": "left_ee_pose",
+    #     },
     # )
-    # position_tracking_fine_grained = RewTerm(
-    #     func=navigation_mdp.position_command_error_tanh,
-    #     weight=0.5,
-    #     params={"std": 0.2, "command_name": "pose_command"},
-    # )
-    # orientation_tracking = RewTerm(
-    #     func=navigation_mdp.heading_command_error_abs,
-    #     weight=-0.2,
-    #     params={"command_name": "pose_command"},
-    # )
-
-    action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
-    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
-
 
     # left_end_effector_orientation_tracking = RewTerm(
     #     func=manipulation_mdp.orientation_command_error,
@@ -188,32 +161,109 @@ class RewardsCfg:
     #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"), "command_name": "right_ee_pose"
     #         },
     # )
-    # right_ee_pos_tracking = RewTerm(
-    #     func=manipulation_mdp.position_command_error,
-    #     weight=-2.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_2_link"),
-    #         "command_name": "right_ee_pose",
-    #     },
-    # )
 
-    # right_ee_pos_tracking_fine_grained = RewTerm(
-    #     func=manipulation_mdp.position_command_error_tanh,
-    #     weight=2.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_2_link"),
-    #         "std": 0.05,
-    #         "command_name": "right_ee_pose",
-    #     },
-    # )
+    goal_reached = RewTerm(
+        func=kyon_mdp.goal_reached_command,
+        weight=1.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "command_name": "left_ee_pose",
+            "std": 1.0,
+            "threshold": 0.7
+        }
+    )
 
-    # right_end_effector_orientation_tracking = RewTerm(
-    #     func=manipulation_mdp.orientation_command_error,
-    #     weight=-0.1,
+    hierarchy = RewTerm(
+        func=kyon_mdp.Hierarchy,
+        weight=5.,
+        params={
+            # "decay": 1.0,
+            "rewards": {
+                "reg_mani": RewTerm(
+                    func=kyon_mdp.joint_pos_l2,
+                    weight=1.0,
+                    params={
+                        "asset_cfg": SceneEntityCfg("robot", body_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"]),
+                    }
+                ),
+                "left_ee_pos_tracking": RewTerm(
+                    func=kyon_mdp.position_command_error_gauss,
+                    weight=1.0,
+                    params={
+                        "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+                        "std": 1.0,
+                        "command_name": "left_ee_pose",
+                    },
+                ),
+                "left_ee_pos_tracking_fine_grained": RewTerm(
+                    func=kyon_mdp.position_command_error_gauss,
+                    weight=5.0,
+                    params={
+                        "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+                        "std": 0.25,
+                        "command_name": "left_ee_pose",
+                    },
+                ),
+                    # "left_end_effector_orientation_tracking": RewTerm(
+                    #     func=kyon_mdp.orientation_command_error,
+                    #     weight=-1,
+                    #     params={
+                    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"), "command_name": "left_ee_pose"
+                    #     },
+                    # ) 
+            }
+        }
+    )
+
+    # hierarchy = RewTerm(
+    #     func=kyon_mdp.test_hierarchy,
+    #     weight=5.,
     #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_2_link"), "command_name": "right_ee_pose"
-    #         },
+    #         "rewards": {
+    #             "rew1": RewTerm(
+    #                 func=kyon_mdp.goal_reached_command,
+    #                 weight=1.,
+    #                 params={
+    #                     "asset_cfg": SceneEntityCfg("robot"),
+    #                     "command_name": "left_ee_pose",
+    #                     "std": 1.0,
+    #                     "threshold": 0.7
+    #                 }
+    #             ), 
+    #             "rew2": [
+    #                 RewTerm(
+    #                     func=kyon_mdp.position_command_error_gauss,
+    #                     weight=1.0,
+    #                     params={
+    #                         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+    #                         "std": 1.0,
+    #                         "command_name": "left_ee_pose",
+    #                     }
+    #                 ),
+    #                 RewTerm(
+    #                     func=kyon_mdp.position_command_error_gauss,
+    #                     weight=5.0,
+    #                     params={
+    #                         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+    #                         "std": 0.25,
+    #                         "command_name": "left_ee_pose",
+    #                     }   
+    #                 )
+    #             ]
+    #         }
+    #     }
     # )
+    action_reg = RewTerm(
+        func=kyon_mdp.action_regularization,
+        weight=-1.0,
+        params={
+            "action_name": "pre_trained_policy_action"
+        }
+    )  
+    action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
+    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
+
+
 
 @configclass
 class ObservationCfg:
@@ -264,6 +314,14 @@ class ObservationCfg:
             self.enable_corruption = False
             self.concatenate_terms = True
 
+    
+    # observation groups
+    policy: PolicyCfg = PolicyCfg()
+    critic: CriticCfg = CriticCfg()
+    
+
+@configclass
+class ObservationWithRGBDCfg(ObservationCfg):
     @configclass
     class RGBDCameraCfg(ObsGroup):
         """Observations for policy group with RGB images."""
@@ -289,8 +347,6 @@ class ObservationCfg:
             self.concatenate_terms = True
 
     # observation groups
-    policy: PolicyCfg = PolicyCfg()
-    critic: CriticCfg = CriticCfg()
     rgbd: RGBDCameraCfg = RGBDCameraCfg()
 
 
@@ -312,7 +368,7 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
 
         self.sim.dt = KYON_FULL_BODY_ENV_CFG.sim.dt
         self.sim.render_interval = KYON_FULL_BODY_ENV_CFG.decimation
-        self.decimation = KYON_FULL_BODY_ENV_CFG.decimation * 10
+        self.decimation = KYON_FULL_BODY_ENV_CFG.decimation 
 
         # self.episode_length_s = self.commands.pose_command.resampling_time_range[1]
 
@@ -330,20 +386,36 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
             },
         )
 
-        self.scene.front_up_camera = TiledCameraCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
-            update_period=0.0333,
-            height=600,
-            width=860,
-            data_types=["rgb", "distance_to_image_plane"],
-            debug_vis=True,
-            spawn=sim_utils.PinholeCameraCfg(
-                focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
-            ),
-            offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
-            depth_clipping_behavior="max",
-        )
-        self.image_obs_list = ["front_up_camera"]
+
+
+@configclass
+class LocomanipulationKyonSceneCfg_PLAY(LocomanipulationKyonSceneCfg):
+
+    # observations: ObservationWithRGBDCfg = ObservationWithRGBDCfg()
+    # commands: CommandsVLMCfg = CommandsVLMCfg()
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 2.5
+        self.scene.terrain.max_init_terrain_level = None
+        self.episode_length_s = 100000
+
+        # self.scene.front_up_camera = TiledCameraCfg(
+        #     prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
+        #     update_period=0.0333,
+        #     height=600,
+        #     width=860,
+        #     data_types=["rgb", "distance_to_image_plane"],
+        #     debug_vis=True,
+        #     spawn=sim_utils.PinholeCameraCfg(
+        #         focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+        #     ),
+        #     offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+        #     depth_clipping_behavior="max",
+        # )
+        # self.image_obs_list = ["front_up_camera"]
 
         # # Table
         self.scene.packing_table = AssetBaseCfg(
@@ -374,19 +446,6 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
             ),
         )
-
-@configclass
-class LocomanipulationKyonSceneCfg_PLAY(LocomanipulationKyonSceneCfg):
-
-    # commands: CommandsVLMCfg = CommandsVLMCfg()
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.scene.num_envs = 50
-        self.scene.env_spacing = 2.5
-        self.scene.terrain.max_init_terrain_level = None
-        self.episode_length_s = 100000
 
         # reduce the number of terrains to save memory
         if self.scene.terrain.terrain_generator is not None:

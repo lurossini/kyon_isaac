@@ -210,19 +210,21 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             # agent stepping
             actions = policy(obs)
 
-            # env stepping
-            obs, _, _, _ = env.step(actions)
             if args_cli.interactive:
                 while True:
                     try:
                         msg = socket.recv(flags=zmq.NOBLOCK)
                         rx_msg.ParseFromString(msg)
-                        ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
+                        ref = [-3 * rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
                     except zmq.Again:
                         break     
-                obs['policy'][0, 6:9] = torch.Tensor(ref) 
-            obsvec = obs['policy'].flatten()
+                env.unwrapped.command_manager.get_term('base_velocity').vel_command_b = torch.Tensor(ref).unsqueeze(0).repeat(env.unwrapped.num_envs, 1).float()
 
+            # env stepping
+            obs, _, _, _ = env.step(actions)
+            wheel_joint_idx = env.unwrapped.scene.articulations["robot"].find_joints(["wheel_.*"])[0]
+            print(env.unwrapped.scene.articulations["robot"].data.joint_vel[0, wheel_joint_idx])
+            
         if args_cli.video:
             timestep += 1
             # Exit the play loop after recording one video
@@ -233,8 +235,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         sleep_time = dt - (time.time() - start_time)
         if args_cli.real_time and sleep_time > 0:
             time.sleep(sleep_time)
-
-        counter += 1
 
     # close the simulator
     env.close()

@@ -112,12 +112,6 @@
       </geometry>
       <material name="dark_grey"/>
     </visual>
-    <!-- <collision>
-      <origin xyz="0.0 0.0 0.0"  rpy="0.0 0.0 0.0"/>
-        <geometry>
-          <mesh filename="./meshes/collision/mesh_sh_yaw.stl" scale="0.001 0.001 0.001"/>
-        </geometry>
-	  </collision> -->
   </link>
   <link name="shoulder_pitch_1_link">
     <inertial>
@@ -137,14 +131,13 @@
       </geometry>
       <material name="kyon_orange"/>
     </visual>
-    <collision>
-		<origin xyz="0 -0.15 0"/>
-	  	<geometry>
-			<!-- <mesh filename="package://kyon_urdf/meshes/collision/mesh_sh-pitch.stl" scale="0.001 0.001 0.001"/> -->
-			<box size="0.05 0.3 0.025"/>
-		</geometry>
-		<material name="kyon_orange"/>
-	</collision>
+    <!-- <collision>
+      <origin xyz="0 -0.15 0"/>
+        <geometry>
+        <box size="0.05 0.3 0.025"/>
+      </geometry>
+      <material name="kyon_orange"/>
+    </collision> -->
   </link>
   <link name="elbow_pitch_1_link">
     <inertial>
@@ -158,13 +151,12 @@
       </geometry>
       <material name="dark_grey"/>
     </visual>
-    <collision>
-		<origin xyz="0 -0.15 0.035"/>
-		<geometry>
-			<!-- <mesh filename="package://kyon_urdf/meshes/mesh_elbow.stl" scale="0.001 0.001 0.001"/> -->
-			<box size="0.05 0.3 0.025"/>
-		</geometry>
-	</collision>
+    <!-- <collision>
+      <origin xyz="0 -0.15 0.035"/>
+      <geometry>
+        <box size="0.05 0.3 0.025"/>
+      </geometry>
+	</collision> -->
   </link>
   <link name="wrist_pitch_1_link">
     <inertial>
@@ -179,13 +171,12 @@
       </geometry>
       <material name="dark_grey"/>
     </visual>
-    <collision>
-		<origin xyz="0 -0.05 0"/>
-		<geometry>
-			<!-- <mesh filename="package://kyon_urdf/meshes/collision/mesh_wrist-pitch.stl" scale="0.001 0.001 0.001"/> -->
-			<box size="0.05 0.1 0.025"/>
-		</geometry>
-	</collision>
+    <!-- <collision>
+      <origin xyz="0 -0.05 0"/>
+      <geometry>
+        <box size="0.05 0.1 0.025"/>
+      </geometry>
+    </collision> -->
   </link>
   <link name="wrist_yaw_1_link">
     <inertial>
@@ -200,12 +191,6 @@
       </geometry>
       <material name="dark_grey"/>
     </visual>
-    <!-- <collision>
-      <origin xyz="0.0 0.0 0.0"  rpy="0.0 0.0 0.0"/>
-      <geometry>
-        <mesh filename="./meshes/collision/mesh_wrist_yaw.stl" scale="0.001 0.001 0.001"/>
-      </geometry>
-    </collision> -->
   </link>
   <joint name="shoulder_yaw_1" type="revolute">
     <parent link="pelvis"/>

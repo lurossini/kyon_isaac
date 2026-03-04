@@ -19,14 +19,37 @@ def reset_joint_target_to_default(env: ManagerBasedRLEnv,  env_ids: torch.Tensor
     articulation_asset: Articulation = env.scene[asset_cfg.name]
 
     # obtain default joint positions
-    print(articulation_asset.data.default_joint_pos.shape)
-    print(env_ids)
-    print(asset_cfg.joint_ids)
     default_joint_pos = articulation_asset.data.default_joint_pos[:, asset_cfg.joint_ids].clone()
     default_joint_vel = articulation_asset.data.default_joint_vel[:, asset_cfg.joint_ids].clone()
     # reset joint targets if required
     articulation_asset.set_joint_position_target(default_joint_pos, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
     articulation_asset.set_joint_velocity_target(default_joint_vel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
+
+def random_joint_position_velocity(env, env_ids, asset_cfg, rel_standing_envs=0.1):
+    articulation_asset = env.scene[asset_cfg.name]
+
+    high_vel, low_vel = 10, -10
+    high_pos, low_pos = 2, -2
+
+    num_envs_local = len(env_ids)
+    num_joints = len(asset_cfg.joint_ids)
+
+    random_jvel = (high_vel - low_vel) * torch.rand(num_envs_local, num_joints, device=env.device) + low_vel
+    random_jpos = (high_pos - low_pos) * torch.rand(num_envs_local, num_joints, device=env.device) + low_pos
+
+    # sample standing within local subset
+    is_standing_local = torch.rand(num_envs_local, device=env.device) <= rel_standing_envs
+    standing_local_ids = is_standing_local.nonzero(as_tuple=False).flatten()
+
+    if standing_local_ids.numel() > 0:
+        global_ids = env_ids[standing_local_ids]
+
+        random_jvel[standing_local_ids] = 0.0
+        random_jpos[standing_local_ids] = (articulation_asset.data.joint_pos_target[global_ids][:, asset_cfg.joint_ids])
+
+    articulation_asset.set_joint_position_target(random_jpos, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
+
+    articulation_asset.set_joint_velocity_target(random_jvel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
 
 
 def reset_joints_around_default(
