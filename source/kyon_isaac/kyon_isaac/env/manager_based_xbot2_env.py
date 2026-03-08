@@ -24,6 +24,7 @@ class XBot2RobotData:
         self.default_joint_vel = torch.zeros((1, num_joint))
         self.applied_torque = torch.zeros((1, num_joint))
         self.joint_pos_target = torch.zeros((1, num_joint))
+        self.joint_vel_target = torch.zeros((1, num_joint))
 
 class XBot2Robot:
     
@@ -48,6 +49,8 @@ class XBot2Robot:
             
         self.fixed_joints = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1', 'dagana_1_clamp_joint'
                              'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2', 'wrist_pitch_2', 'wrist_yaw_2', 'dagana_2_clamp_joint']
+        
+        self.wheel_joints = [f'wheel_joint_{i}' for i in range(1, 5)]
         
         ctrl_mode = [0 if j in self.fixed_joints else 25 for j in self.joint_names]
 
@@ -99,15 +102,20 @@ class XBot2Robot:
         self.data.joint_vel[0, :] = torch.tensor(self.xbot_robot.getMotorVelocities())[self.idx_xbot_to_isaac]
         self.data.applied_torque[0, :] = torch.tensor(self.xbot_robot.getJointEffort())[self.idx_xbot_to_isaac]
         self.data.joint_pos_target[0, :] = torch.tensor(self.xbot_robot.getPositionReference())[self.idx_xbot_to_isaac]
+        self.data.joint_vel_target[0, :] = torch.tensor(self.xbot_robot.getVelocityReference())[self.idx_xbot_to_isaac]
         self.data.projected_gravity_b[0, :] = -torch.tensor(self.xbot_robot.getImuOrientation()[2, :]) * torch.tensor([1, -1, -1])
         self.data.root_ang_vel_b[0, :] = torch.tensor(self.xbot_robot.getImuAngularVelocity()) * torch.tensor([1, -1, -1])
         self.time += 0.02
     
     def set_joint_position_target(self, target, joint_ids):
         self.data.joint_pos_target[0, joint_ids] = target
+
+    def set_joint_velocity_target(self, target, joint_ids):
+        self.data.joint_vel_target[0, joint_ids] = target
         
     def move(self):
         self.xbot_robot.setPositionReference(self.data.joint_pos_target[0, :].numpy())
+        self.xbot_robot.setVelocityReference(self.data.joint_vel_target[0, :].numpy())
         self.xbot_robot.move()
 
     
