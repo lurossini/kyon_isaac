@@ -2,12 +2,8 @@
 
 from isaaclab.envs.mdp import *  # noqa: F401, F403
 
-from .curriculums import *  # noqa: F401, F403
 from .rewards import *  # noqa: F401, F403
 from .observations import *
-from .mjx_rewards import *
 from .event import *
-from .action import *
-from .termination import *
 from .pre_trained_policy_action import *
 from .commands import *

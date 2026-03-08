@@ -19,8 +19,8 @@ from isaaclab.app import AppLauncher
 import cli_args  # isort: skip
 
 class ZMQIO:    
-    # REMOTE_IP: str = "localhost"
-    REMOTE_IP = "10.240.23.24"      # Threadripper
+    """ZMQ communication class to send image and prompt to another process running the Cosmos VLM"""
+    REMOTE_IP: str = "localhost"
 
     def __init__(self):
         context = zmq.Context()
@@ -56,24 +56,15 @@ class ZMQIO:
             if msg is not None:
                 try:
                     response_text = msg
-                    # print(msg)
-
-                    # Remove markdown formatting if present
-                    # if response_text.startswith("```"):
-                    #     response_text = response_text.split("```")[1]
-                    #     response_text = response_text.replace("json", "", 1).strip()
-                    
-                    # response_dict = json.loads(response_text)
                     response_dict = response_text
 
-                    # If backend returned a list, take first element
+                    # Sometimes VLM may reply with a list(dict). In this case, take the first element
                     if isinstance(response_dict, list):
                         if len(response_dict) > 0:
                             response_dict = response_dict[0]
                         else:
                             response_dict = None
 
-                    # Store thread-safe
                     with self.latest_detection_lock:
                         self.__latest_detection = response_dict
 
@@ -108,7 +99,6 @@ class ZMQIO:
                     "- box_2d in [x1, y1, x2, y2] in normalized coordinates.\n"
         }
 
-        # if counter % 10 == 0:
         self.__socket_push.send_multipart([json.dumps(meta).encode("utf-8"), frame_depth.tobytes()])
 
 
@@ -342,23 +332,36 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         start_time = time.time()
         # run everything in inference mode
         with torch.inference_mode():
+            # send image from camera to VLM
             zmq_io.send_image(obs, counter)
+
+            # get latest processed image
             with zmq_io.latest_detection_lock:
                 latest_detection = zmq_io.get_latest_detection
+
+            # check that the first response has been received 
             if latest_detection is not None:
                 if latest_detection['detected'] == True:
-                    print(latest_detection['bbox_pixels'])
+                    
+                    # compute center of the bounding box
                     x_center = int((latest_detection['bbox_pixels'][0] + latest_detection['bbox_pixels'][2]) / 2)
                     y_center = int((latest_detection['bbox_pixels'][1] + latest_detection['bbox_pixels'][3]) / 2)
+                    
+                    # get depth of the bbox center pixel
                     depth = zmq_io.get_sent_image(latest_detection['seq'])[y_center, x_center, 3]
+
+                    # convert from image frame to camera frame
                     x_obj = (x_center - width/2) * depth / fx
                     y_obj = (y_center - height/2) * depth / fy
                     y_obj_camera = -x_obj
                     z_obj_camera = -y_obj
                     x_obj_camera = depth
+
+                    # convert to PoseCommand                  
                     print(f'Estimated position: {x_obj_camera}, {y_obj_camera}, {z_obj_camera}')
                     cmd = torch.tensor([x_obj_camera, y_obj_camera, z_obj_camera, 0, 0, 0, 1])   # ignore orientation tracking
-                    if torch.norm(cmd[:3]) < 4:
+                    
+                    if torch.norm(cmd[:3]) < 4:         # ignore too far targets that may come from hallucination or detection errors
                         env.unwrapped.command_manager.get_term('left_ee_pose').set_command(cmd.unsqueeze(0).repeat(env.unwrapped.num_envs, 1).float())
                         detected = True
                 else:
@@ -368,6 +371,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             # agent stepping
             actions = policy(obs)
 
+            # explore the environment moving the robot with the joystick
             if args_cli.interactive:
                 while True:
                     try:
@@ -376,13 +380,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                         ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
                     except zmq.Again:
                         break    
-                if not detected: 
+                if not detected:                # base velocity references from joystick can be sent as soon as the object is not detected
                     torch_ref = torch.tensor(ref)
                     actions[:, :3] = torch_ref.unsqueeze(0).repeat(env.unwrapped.num_envs, 1)
 
             # env stepping
             obs, _, _, _ = env.step(actions)
-
 
         if args_cli.video:
             timestep += 1

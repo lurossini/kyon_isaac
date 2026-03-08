@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv, ManagerBasedEnv
 
 def reset_joint_target_to_default(env: ManagerBasedRLEnv,  env_ids: torch.Tensor, asset_cfg: SceneEntityCfg):
-    
+    """Reset the joint position and velocity target to defaults"""
     articulation_asset: Articulation = env.scene[asset_cfg.name]
 
     # obtain default joint positions
@@ -25,11 +25,12 @@ def reset_joint_target_to_default(env: ManagerBasedRLEnv,  env_ids: torch.Tensor
     articulation_asset.set_joint_position_target(default_joint_pos, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
     articulation_asset.set_joint_velocity_target(default_joint_vel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
 
-def random_joint_position_velocity(env, env_ids, asset_cfg, rel_standing_envs=0.1):
+def random_joint_position_velocity(env, env_ids, asset_cfg, pos_lims, vel_lims, rel_standing_envs=0.1):
+    """Sample a random joint position and velocity in a user defined range"""
     articulation_asset = env.scene[asset_cfg.name]
 
-    high_vel, low_vel = 10, -10
-    high_pos, low_pos = 2, -2
+    high_vel, low_vel = vel_lims[0], vel_lims[1]
+    high_pos, low_pos = pos_lims[0], pos_lims[1]
 
     num_envs_local = len(env_ids)
     num_joints = len(asset_cfg.joint_ids)
@@ -48,7 +49,6 @@ def random_joint_position_velocity(env, env_ids, asset_cfg, rel_standing_envs=0.
         random_jpos[standing_local_ids] = (articulation_asset.data.joint_pos_target[global_ids][:, asset_cfg.joint_ids])
 
     articulation_asset.set_joint_position_target(random_jpos, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
-
     articulation_asset.set_joint_velocity_target(random_jvel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
 
 
@@ -68,9 +68,6 @@ def reset_joints_around_default(
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
     # get default joint state
-    # print("DEBUG")
-    # print(asset.data.default_joint_pos[env_ids, asset_cfg.joint_ids].shape)
-    # print(asset_cfg.joint_ids)
     joint_min_pos = asset.data.default_joint_pos[env_ids[:, None], asset_cfg.joint_ids] + position_range[0]
     joint_max_pos = asset.data.default_joint_pos[env_ids[:, None], asset_cfg.joint_ids] + position_range[1]
     joint_min_vel = asset.data.default_joint_vel[env_ids[:, None], asset_cfg.joint_ids] + velocity_range[0]

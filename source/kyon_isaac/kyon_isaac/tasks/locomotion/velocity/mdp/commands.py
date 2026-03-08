@@ -80,14 +80,7 @@ class UniformPoseCommand(CommandTerm):
     """
 
     def _update_metrics(self):
-        # transform command from base frame to simulation world frame
-        # self.pose_command_w[:, :3], self.pose_command_w[:, 3:] = combine_frame_transforms(
-        #     self.robot.data.root_pos_w,
-        #     self.robot.data.root_quat_w,
-        #     self.pose_command_b[:, :3],
-        #     self.pose_command_b[:, 3:],
-        # )
-        # compute the error
+        # compute the error in world frame
         pos_error, rot_error = compute_pose_error(
             self.pose_command_w[:, :3],
             self.pose_command_w[:, 3:],
@@ -114,6 +107,7 @@ class UniformPoseCommand(CommandTerm):
         self.pose_command_w[env_ids, 3:] = quat_unique(quat) if self.cfg.make_quat_unique else quat
 
     def _update_command(self):
+        # transform sampled command from world to base frame
         root_quat_inv = quat_conjugate(self.robot.data.root_quat_w)
         root_pos_inv = -quat_apply(root_quat_inv, self.robot.data.root_pos_w)
         self.pose_command_b[:, :3], self.pose_command_b[:, 3:] = combine_frame_transforms(
@@ -209,6 +203,7 @@ class UniformPoseCommandCfg(CommandTermCfg):
 
 
 class PoseCommand(CommandTerm):
+    """Pose command setter from user. For inference using any detection module from camera"""
     cfg: PoseCommandCfg
 
     def __init__(self, cfg: PoseCommandCfg, env: ManagerBasedEnv):
@@ -262,14 +257,7 @@ class PoseCommand(CommandTerm):
     """
 
     def _update_metrics(self):
-        # transform command from base frame to simulation world frame
-        # self.pose_command_w[:, :3], self.pose_command_w[:, 3:] = combine_frame_transforms(
-        #     self.robot.data.root_pos_w,
-        #     self.robot.data.root_quat_w,
-        #     self.pose_command_b[:, :3],
-        #     self.pose_command_b[:, 3:],
-        # )
-        # compute the error
+        # compute the error in world frame
         pos_error, rot_error = compute_pose_error(
             self.pose_command_w[:, :3],
             self.pose_command_w[:, 3:],
@@ -283,6 +271,7 @@ class PoseCommand(CommandTerm):
         pass
 
     def set_command(self, cmd: torch.Tensor):
+        """Commands (i.e., body_name Cartesian references) are given in camera frame"""
         # transform from camera frame to world frame
         self.pose_command_w[:, :3], self.pose_command_w[:, 3:] = combine_frame_transforms(
             self.robot.data.body_link_pos_w[:, self.camera_idx],
@@ -314,14 +303,13 @@ class PoseCommand(CommandTerm):
         self._update_command()
 
     def _update_command(self):
+        # trasform from body to world frame
         self.pose_command_w[:, :3], self.pose_command_w[:, 3:] = combine_frame_transforms(
             self.robot.data.root_pos_w,
             self.robot.data.root_quat_w,
             self.pose_command_b[:, :3],
             self.pose_command_b[:, 3:],
         )
-        # print(f'pose_command_b: {self.pose_command_b.detach().cpu().numpy()}')
-        # print(f'pose_command_w: {self.pose_command_w.detach().cpu().numpy()}')
 
     def _set_debug_vis_impl(self, debug_vis: bool):
         # create markers if necessary for the first time
