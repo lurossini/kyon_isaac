@@ -36,9 +36,40 @@ from pathlib import Path
 KYON_FULL_BODY_ENV_CFG = KyonFullFlatEnvCfg()
 KYON_ISAAC_BASE_DIR = Path(kyon_isaac.__file__).resolve().parent
 
-# @configclass
-# class CurriculumCfg:
-#     left_ee_pos_levels = CurrTerm
+import torch
+from collections.abc import Sequence
+from isaaclab.managers.reward_manager import RewardManager
+def reset(self, env_ids: Sequence[int] | None = None) -> dict[str, torch.Tensor]:
+    """Returns the episodic sum of individual reward terms.
+
+    Args:
+        env_ids: The environment ids for which the episodic sum of
+            individual reward terms is to be returned. Defaults to all the environment ids.
+
+    Returns:
+        Dictionary of episodic sum of individual reward terms.
+    """
+    # resolve environment ids
+    if env_ids is None:
+        env_ids = slice(None)   
+    # store information
+    extras = {}
+    for key in self._episode_sums.keys():
+        # store information
+        # r_1 + r_2 + ... + r_n
+        episodic_sum_avg = torch.mean(self._episode_sums[key][env_ids])
+        extras["Episode_Reward/" + key] = episodic_sum_avg / self._env.max_episode_length_s
+        # reset episodic sum
+        self._episode_sums[key][env_ids] = 0.0
+    # reset all the reward terms
+    for term_cfg in self._class_term_cfgs:
+        term_extras = term_cfg.func.reset(env_ids=env_ids)
+        if term_extras is not None:
+            extras.update(term_extras)
+    # return logged information
+    return extras
+
+RewardManager.reset = reset
 
 @configclass
 class CommandsCfg:
@@ -75,7 +106,7 @@ class ActionsCfg:
     # Lower-body locomotion frozen policy
     pre_trained_policy_action: kyon_mdp.PreTrainedPolicyActionCfg = kyon_mdp.PreTrainedPolicyActionCfg(
         asset_name="robot",
-        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/legged_locomotion/exported/policy.pt",
+        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-02-02_08-41-17/exported/policy.pt",
         low_level_decimation=1,
         low_level_actions=KYON_FULL_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
@@ -108,24 +139,45 @@ class RewardsCfg:
         params={
             # "decay": 1.0,
             "rewards": {
-                "left_ee_pos_tracking": RewTerm(
-                    func=kyon_mdp.position_command_error_gauss,
-                    weight=1.0,
-                    params={
-                        "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-                        "std": 1.0,
-                        "command_name": "left_ee_pose",
-                    },
-                ),
-                "left_ee_pos_tracking_fine_grained": RewTerm(
-                    func=kyon_mdp.position_command_error_gauss,
-                    weight=5.0,
-                    params={
-                        "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-                        "std": 0.25,
-                        "command_name": "left_ee_pose",
-                    },
-                ),
+                "goal_reached": {
+                    "goal_reached": RewTerm(
+                        func=kyon_mdp.goal_reached_command,
+                        weight=1.,
+                        params={
+                            "asset_cfg": SceneEntityCfg("robot"),
+                            "command_name": "left_ee_pose",
+                            "std": 1.5,
+                            "threshold": 0.5
+                        }
+                    ),
+                    "left_arm_joint_pos": RewTerm(
+                        func=kyon_mdp.joint_pos_norm,
+                        weight=-0.1,
+                        params={
+                            "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"])
+                        }
+                    )
+                },
+                "left_ee_pos_tracking": {
+                    "left_ee_pos_tracking": RewTerm(
+                        func=kyon_mdp.position_command_error_gauss,
+                        weight=1.0,
+                        params={
+                            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+                            "std": 1.0,
+                            "command_name": "left_ee_pose",
+                        },
+                    ),
+                    "left_ee_pos_tracking_fine_grained": RewTerm(
+                        func=kyon_mdp.position_command_error_gauss,
+                        weight=5.0,
+                        params={
+                            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+                            "std": 0.25,
+                            "command_name": "left_ee_pose",
+                        },
+                    )
+                },
                 "left_end_effector_orientation_tracking": RewTerm(
                     func=kyon_mdp.orientation_command_error,
                     weight=-1,
