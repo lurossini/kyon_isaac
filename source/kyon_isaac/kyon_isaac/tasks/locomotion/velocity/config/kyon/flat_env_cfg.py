@@ -387,6 +387,7 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # we tick all the sensors based on the smallest update period (physics update period)
         self.scene.contact_forces.update_period = self.sim.dt
 
+        self.scene.num_envs = 8192
         
         # switch robot to Kyon
         self.scene.robot = KYON_LOWER_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
@@ -453,15 +454,23 @@ class KyonFullFlatEnvCfg(KyonFlatEnvCfg):
         self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         self.events.reset_arms = EventTerm(
-            func=kyon_mdp.random_joint_position_velocity, 
-            mode="interval",
-            interval_range_s=(0.5, 0.5),
+            func=kyon_mdp.reset_joint_target_to_default, 
+            mode="startup",
             params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"]),
-                "pos_lims": (-2, 2),
-                "vel_lims": (-10, 10)
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_pitch_.*", "wrist_.*", "dagana_.*"])
             },
         )
+
+        # self.events.reset_arms = EventTerm(
+        #     func=kyon_mdp.random_joint_position_velocity, 
+        #     mode="interval",
+        #     interval_range_s=(0.5, 0.5),
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"]),
+        #         "pos_lims": (-2, 2),
+        #         "vel_lims": (-10, 10)
+        #     },
+        # )
 
 class KyonFullFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
     def __post_init__(self) -> None:
