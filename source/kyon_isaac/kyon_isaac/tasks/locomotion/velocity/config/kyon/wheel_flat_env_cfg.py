@@ -35,8 +35,8 @@ from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_WHEEL_BOD
 
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
-    size=(8.0, 8.0),
-    border_width=20.0,
+    size=(16.0, 16.0),
+    border_width=40.0,
     num_rows=9,
     num_cols=21,
     horizontal_scale=0.1,
@@ -57,7 +57,7 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
 class KyonActionsCfg:
     """Action specifications for the MDP."""
     joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.5, use_default_offset=True)
-    joint_vel = mdp.JointVelocityActionCfg(asset_name="robot", joint_names=["wheel_.*"], scale=10.)
+    joint_vel = mdp.JointVelocityActionCfg(asset_name="robot", joint_names=["wheel_.*"], scale=40.)
 
 @configclass
 class KyonCommandsCfg:
@@ -102,9 +102,6 @@ class KyonObservationsMjxCfg:
         joint_vel = ObsTerm(
             func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*", "wheel_.*"])}, noise=Unoise(n_min=-0.5, n_max=0.5)
         )
-        # joint_effort = ObsTerm(
-        #     func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
-        # )
         actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
@@ -124,49 +121,24 @@ class KyonObservationsMjxCfg:
             func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("imu_sensor")}
         )
 
-        contact_forces = ObsTerm(
-            func=kyon_mdp.contact_forces, 
-            params={ 
-                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*")
-            }, 
-        )
+        # contact_forces = ObsTerm(
+        #     func=kyon_mdp.contact_forces, 
+        #     params={ 
+        #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*")
+        #     }, 
+        # )
 
         joint_effort = ObsTerm(
-            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}
+            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*", "wheel_.*"])}
         )
         def __post_init__(self):
             self.enable_corruption = False
             self.concatenate_terms = True
 
-    # @configclass
-    # class RGBDCameraCfg(ObsGroup):
-    #     """Observations for policy group with RGB images."""
-
-    #     front_up_cam_image = ObsTerm(
-    #         func=mdp.image,
-    #         params={
-    #             "sensor_cfg": SceneEntityCfg("front_up_camera"), 
-    #             "data_type": "rgb", 
-    #             "normalize": False}
-    #     )
-
-    #     front_up_cam_depth = ObsTerm(
-    #         func=mdp.image,
-    #         params={
-    #             "sensor_cfg": SceneEntityCfg("front_up_camera"), 
-    #             "data_type": "distance_to_image_plane", 
-    #             "normalize": True}
-    #     )
-
-    #     def __post_init__(self):
-    #         self.enable_corruption = True
-    #         self.concatenate_terms = True
-
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
-    # rgbd: RGBDCameraCfg = RGBDCameraCfg()
 
 
 @configclass
@@ -255,7 +227,7 @@ class KyonEventCfg:
         params={
             "position_range": (-0.2, 0.2),
             "velocity_range": (-0.1, 0.1),
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"]),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*", "wheel_joint_.*"]),
         },
     )
 
@@ -283,13 +255,13 @@ class KyonRewardsCfg:
     #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
     #     },
     # )
-    contact_time = RewardTermCfg(
-        func=kyon_mdp.maximise_contact_time,
-        weight=5.0,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
-        }
-    )
+    # contact_time = RewardTermCfg(
+    #     func=kyon_mdp.maximise_contact_time,
+    #     weight=5.0,
+    #     params={
+    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
+    #     }
+    # )
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
         weight=5.0,
@@ -349,11 +321,10 @@ class KyonRewardsCfg:
     joint_acc = RewardTermCfg(
         func=spot_mdp.joint_acceleration_penalty,
         weight=-1.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_pitch_.*", "knee_.*"])},
     )
     joint_pos = RewardTermCfg(
         func=kyon_mdp.joint_position_on_wheels_penalty,
-        # weight=-0.7,
         weight=-1.4,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_pitch_.*", "knee_.*"]),
@@ -364,7 +335,7 @@ class KyonRewardsCfg:
     joint_torques = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
         weight=-5.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot")},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_pitch_.*", "knee_.*"])},
     )
     joint_vel = RewardTermCfg(
         func=spot_mdp.joint_velocity_penalty,
@@ -388,11 +359,11 @@ class KyonTerminationsCfg:
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis", "knee_pitch_.*"]), "threshold": 1.0},
     )
     arms_contact = None
-    # terrain_out_of_bounds = DoneTerm(
-    #     func=mdp.terrain_out_of_bounds,
-    #     params={"asset_cfg": SceneEntityCfg("robot"), "distance_buffer": 3.0},
-    #     time_out=True,
-    # )
+    terrain_out_of_bounds = DoneTerm(
+        func=mdp.terrain_out_of_bounds,
+        params={"asset_cfg": SceneEntityCfg("robot"), "distance_buffer": 3.0},
+        time_out=True,
+    )
 
 
 @configclass
@@ -505,15 +476,6 @@ class KyonWheelFlatEnvCfg(KyonFlatEnvCfg):
             },
         )
 
-        # self.events.reset_arms = EventTerm(
-        #     func=kyon_mdp.random_joint_position_velocity, 
-        #     mode="interval",
-        #     interval_range_s=(0.5, 0.5),
-        #     params={
-        #         "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
-        #     },
-        # )
-
 class KyonWheelFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
     def __post_init__(self) -> None:
         # post init of parent
@@ -529,58 +491,3 @@ class KyonWheelFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
                 "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
             },
         )
-
-        # self.events.reset_arms = EventTerm(
-        #     func=kyon_mdp.random_joint_position_velocity, 
-        #     mode="interval",
-        #     interval_range_s=(0.5, 0.5),
-        #     params={
-        #         "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
-        #     },
-        # )
-
-
-        # self.scene.front_up_camera = TiledCameraCfg(
-        #     prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
-        #     update_period=0.0333,
-        #     height=600,
-        #     width=860,
-        #     data_types=["rgb", "distance_to_image_plane"],
-        #     debug_vis=True,
-        #     spawn=sim_utils.PinholeCameraCfg(
-        #         focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
-        #     ),
-        #     offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
-        #     depth_clipping_behavior="max",
-        # )
-        # self.image_obs_list = ["front_up_camera"]
-
-        # # # Table
-        # self.scene.packing_table = AssetBaseCfg(
-        #     prim_path="/World/envs/env_.*/PackingTable",
-        #     init_state=AssetBaseCfg.InitialStateCfg(pos=[0.0, 0.55, -0.3], rot=[1.0, 0.0, 0.0, 0.0]),
-        #     spawn=UsdFileCfg(
-        #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/PackingTable/packing_table.usd",
-        #         rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
-        #     ),
-        # )
-
-        # self.scene.object = RigidObjectCfg(
-        #     prim_path="{ENV_REGEX_NS}/Object",
-        #     init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.35, 0.45, 0.6996], rot=[1, 0, 0, 0]),
-        #     spawn=UsdFileCfg(
-        #         usd_path=f"{ISAACLAB_NUCLEUS_DIR}/Mimic/pick_place_task/pick_place_assets/steering_wheel.usd",
-        #         scale=(0.75, 0.75, 0.75),
-        #         rigid_props=sim_utils.RigidBodyPropertiesCfg(),
-        #     ),
-        # )
-
-        # self.scene.mug = AssetBaseCfg(
-        #     prim_path="{ENV_REGEX_NS}/Mug",
-        #     init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.35, 0.45, 1.], rot=[1, 0, 0, 0]),
-        #     spawn=UsdFileCfg(
-        #         usd_path=f"https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/Props/Mugs/SM_Mug_D1.usd",
-        #         # scale=(0.75, 0.75, 0.75),
-        #         rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
-        #     ),
-        # )
