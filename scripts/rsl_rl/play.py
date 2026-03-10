@@ -222,8 +222,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
             # env stepping
             obs, _, _, _ = env.step(actions)
-            wheel_joint_idx = env.unwrapped.scene.articulations["robot"].find_joints(["wheel_.*"])[0]
-            print(env.unwrapped.scene.articulations["robot"].data.joint_vel[0, wheel_joint_idx])
+            # wheel_joint_idx = env.unwrapped.scene.articulations["robot"].find_joints(["wheel_.*"])[0]
+            # print(env.unwrapped.scene.articulations["robot"].data.joint_vel[0, wheel_joint_idx])
             
         if args_cli.video:
             timestep += 1
