@@ -196,7 +196,7 @@ class RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"])
         }
     )
-    action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
+    action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-10.0)
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
 
 
