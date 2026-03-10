@@ -365,7 +365,7 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
     events: KyonEventCfg = KyonEventCfg()
 
     # Viewer
-    viewer = ViewerCfg(eye=(-1.5, -4.5, 0.3), origin_type="world", env_index=0, asset_name="robot")
+    viewer = ViewerCfg(eye=(-1.5, -4.5, 0.3), origin_type="asset_root", env_index=0, asset_name="robot")
 
     # Imu
     

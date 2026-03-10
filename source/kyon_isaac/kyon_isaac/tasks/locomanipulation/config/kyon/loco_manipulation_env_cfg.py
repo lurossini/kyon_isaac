@@ -106,7 +106,7 @@ class ActionsCfg:
     # Lower-body locomotion frozen policy
     pre_trained_policy_action: kyon_mdp.PreTrainedPolicyActionCfg = kyon_mdp.PreTrainedPolicyActionCfg(
         asset_name="robot",
-        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-02-02_08-41-17/exported/policy.pt",
+        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-03-09_13-19-17/exported/policy.pt",
         low_level_decimation=1,
         low_level_actions=KYON_FULL_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
@@ -302,9 +302,9 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
         # Reset uncontrolled arm joint target to default to avoid moving it to zero
         self.events.reset_arms = EventTerm(
             func=kyon_mdp.reset_joint_target_to_default, 
-            mode="startup",
+            mode="reset",
             params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_2", "shoulder_pitch_2", "elbow_pitch_2", "wrist_pitch_2", "wrist_yaw_2", "dagana_.*"])
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_.*", "shoulder_pitch_.*", "elbow_pitch_.*", "wrist_pitch_.*", "wrist_yaw_.*", "dagana_.*"])
             },
         )
 
