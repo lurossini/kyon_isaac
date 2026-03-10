@@ -139,25 +139,20 @@ class RewardsCfg:
         params={
             # "decay": 1.0,
             "rewards": {
-                "goal_reached": {
-                    "goal_reached": RewTerm(
-                        func=kyon_mdp.goal_reached_command,
-                        weight=1.,
-                        params={
-                            "asset_cfg": SceneEntityCfg("robot"),
-                            "command_name": "left_ee_pose",
-                            "std": 1.5,
-                            "threshold": 0.5
-                        }
-                    ),
-                    "left_arm_joint_pos": RewTerm(
-                        func=kyon_mdp.joint_pos_norm,
-                        weight=-0.1,
-                        params={
-                            "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"])
-                        }
-                    )
-                },
+                "goal_reached": RewTerm(
+                    func=kyon_mdp.goal_reached_command,
+                    weight=1.,
+                    params={
+                        "asset_cfg": SceneEntityCfg("robot"),
+                        "command_name": "left_ee_pose",
+                        "std": 1.,
+                        "threshold": 0.5
+                    }
+                ),
+                "lb_action_regularization": RewTerm(
+                    func=kyon_mdp.action_regularization,
+                      weight=-1,
+                      params={"action_name": "pre_trained_policy_action"}),
                 "left_ee_pos_tracking": {
                     "left_ee_pos_tracking": RewTerm(
                         func=kyon_mdp.position_command_error_gauss,
@@ -189,15 +184,32 @@ class RewardsCfg:
         }
     )
 
-    joint_vel = RewTerm(
-        func=kyon_mdp.joint_velocity_penalty, 
-        weight=-5.0e-2,
+    
+    action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
+    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
+
+    # joint space rewards
+    left_arm_joint_pos = RewTerm(
+        func=kyon_mdp.joint_pos_norm,
+        weight=-0.1,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"])
         }
     )
-    action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-10.0)
-    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
+    joint_vel = RewTerm(
+        func=spot_mdp.joint_velocity_penalty,
+        weight=-5.0e-2,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"])
+        },
+    )
+    joint_acc = RewTerm(
+        func=spot_mdp.joint_acceleration_penalty,
+        weight=-1.0e-4,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"])
+        },
+    )
 
 
 
