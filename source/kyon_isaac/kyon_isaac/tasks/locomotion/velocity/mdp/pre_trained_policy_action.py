@@ -83,7 +83,11 @@ class PreTrainedPolicyAction(ActionTerm):
     """
 
     def process_actions(self, actions: torch.Tensor):
-        self._raw_actions[:] = actions
+        # Clip actions to the trained command limits, hardcoded.
+        clipped_actions = torch.clamp(actions, 
+                                      min=torch.tensor([-1.5, -1.0, -1.5], device=self.device), 
+                                      max=torch.tensor([1.5, 1.0, 1.5], device=self.device))
+        self._raw_actions[:] = clipped_actions
 
     def apply_actions(self):
         if self._counter % self.cfg.low_level_decimation == 0:

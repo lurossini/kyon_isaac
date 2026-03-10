@@ -168,7 +168,7 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),
         "motorC": DelayedPDActuatorCfg(
-            joint_names_expr=["shoulder_yaw_.*", "elbow_pitch_.*"],
+            joint_names_expr=["shoulder_yaw_.*", "elbow_pitch_.*", "dagana_.*"],
             # saturation_effort=185,
             effort_limit=122,
             velocity_limit=4.6,
@@ -296,7 +296,7 @@ KYON_WHEEL_BODY_CFG_TRAIN = ArticulationCfg(
             max_delay=14,  # physics time steps (max: 2.0*4=8.0ms)
         ),
         "motorC": DelayedPDActuatorCfg(
-            joint_names_expr=["shoulder_yaw_.*", "elbow_pitch_.*", "ankle_yaw_.*"],
+            joint_names_expr=["shoulder_yaw_.*", "elbow_pitch_.*", "ankle_yaw_.*", "dagana_.*"],
             # saturation_effort=185,
             effort_limit=122,
             velocity_limit=4.6,

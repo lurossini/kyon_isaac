@@ -19,13 +19,13 @@ def reset_joint_target_to_default(env: ManagerBasedRLEnv,  env_ids: torch.Tensor
     articulation_asset: Articulation = env.scene[asset_cfg.name]
 
     # obtain default joint positions
-    default_joint_pos = articulation_asset.data.default_joint_pos[:, asset_cfg.joint_ids].clone()
-    default_joint_vel = articulation_asset.data.default_joint_vel[:, asset_cfg.joint_ids].clone()
+    default_joint_pos = articulation_asset.data.default_joint_pos[env_ids][:, asset_cfg.joint_ids].clone()
+    default_joint_vel = articulation_asset.data.default_joint_vel[env_ids][:, asset_cfg.joint_ids].clone()
     # reset joint targets if required
     articulation_asset.set_joint_position_target(default_joint_pos, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
-    articulation_asset.data.joint_pos[:, asset_cfg.joint_ids] = default_joint_pos
+    articulation_asset.data.joint_pos[env_ids][:, asset_cfg.joint_ids] = default_joint_pos
     articulation_asset.set_joint_velocity_target(default_joint_vel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
-    articulation_asset.data.joint_vel[:, asset_cfg.joint_ids] = default_joint_vel
+    articulation_asset.data.joint_vel[env_ids][:, asset_cfg.joint_ids] = default_joint_vel
 
 def random_joint_position_velocity(env, env_ids, asset_cfg, pos_lims, vel_lims, rel_standing_envs=0.1):
     """Sample a random joint position and velocity in a user defined range"""
