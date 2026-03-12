@@ -170,6 +170,22 @@ def orientation_command_error(env: ManagerBasedRLEnv, command_name: str, asset_c
     curr_quat_w = asset.data.body_quat_w[:, body_idx]  # type: ignore
     return math.quat_error_magnitude(curr_quat_w, des_quat_w)
 
+def base_linear_velocity_reward_anymal(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, std: float, threshold: float = 0.05
+) -> torch.Tensor:
+    """Reward tracking of linear velocity commands (xy axes) using abs exponential kernel, with a deadzone below a certain error threshold."""
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    # compute the error and apply deadzone
+    target = env.command_manager.get_command("base_velocity")[:, :2]
+    lin_vel_error = torch.linalg.norm((target - asset.data.root_lin_vel_b[:, :2]), dim=1)
+    base_vel = asset.data.root_lin_vel_b[:, :2]
+    base_vel_magnitude = torch.linalg.norm(base_vel, dim=1)
+
+    return torch.where(torch.linalg.norm(target, dim=1) > threshold, 
+                       torch.exp(-2.0 * torch.square(lin_vel_error) / std) + (target * base_vel).sum(dim=1), 
+                       2.0 * torch.exp(-2.0 * torch.square(base_vel_magnitude) / std))
+
 def maximise_contact_time(
     env: ManagerBasedRLEnv,
     sensor_cfg: SceneEntityCfg,
