@@ -197,10 +197,10 @@ def maximise_contact_time(
         raise RuntimeError("Activate ContactSensor's track_air_time!")
     # compute the reward
     current_contact_time = contact_sensor.data.current_contact_time[:, sensor_cfg.body_ids]
-    cmd = torch.norm(env.command_manager.get_command("base_velocity")[:, 1:3], dim=1)
-    reward = torch.where(cmd > 0.0, torch.sum(current_contact_time, dim=1), 0)
+    # cmd = torch.norm(env.command_manager.get_command("base_velocity")[:, 1:3], dim=1)
+    # reward = torch.where(cmd > 0.0, torch.sum(current_contact_time, dim=1), 0)
 
-    return reward
+    return torch.square(torch.linalg.norm(current_contact_time, dim=1))
 
 
 def test_hierarchy(

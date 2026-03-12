@@ -5,7 +5,7 @@
 
 import isaaclab.sim as sim_utils
 import isaaclab.terrains as terrain_gen
-from isaaclab.envs import ViewerCfg
+from isaaclab.envs import ViewerCfg, ManagerBasedRLEnvCfg
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
@@ -21,7 +21,7 @@ from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
+from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, MySceneCfg
 
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
 # from kyon_isaac.sensors import ActionHistorySensorCfg
@@ -121,12 +121,12 @@ class KyonObservationsCfg:
             func=mdp.imu_lin_acc, params={"asset_cfg": SceneEntityCfg("imu_sensor")}
         )
 
-        # contact_forces = ObsTerm(
-        #     func=kyon_mdp.contact_forces, 
-        #     params={ 
-        #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*")
-        #     }, 
-        # )
+        contact_forces = ObsTerm(
+            func=kyon_mdp.contact_forces, 
+            params={ 
+                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*")
+            }, 
+        )
 
         joint_effort = ObsTerm(
             func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*", "wheel_.*"])}
@@ -255,13 +255,13 @@ class KyonRewardsCfg:
     #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
     #     },
     # )
-    # contact_time = RewardTermCfg(
-    #     func=kyon_mdp.maximise_contact_time,
-    #     weight=5.0,
-    #     params={
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
-    #     }
-    # )
+    contact_time = RewardTermCfg(
+        func=kyon_mdp.maximise_contact_time,
+        weight=-5.0e-2,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
+        }
+    )
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
         weight=5.0,
@@ -273,8 +273,8 @@ class KyonRewardsCfg:
     #     params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
     # )
     base_linear_velocity = RewardTermCfg(
-        func=spot_mdp.base_linear_velocity_reward_anymal,
-        weight=10.0,
+        func=kyon_mdp.base_linear_velocity_reward_anymal,
+        weight=5.0,
         params={"std": 1.0, "asset_cfg": SceneEntityCfg("robot")},
     )
     # foot_clearance = RewardTermCfg(
@@ -371,8 +371,9 @@ class KyonTerminationsCfg:
 
 
 @configclass
-class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
+class KyonFlatEnvCfg(ManagerBasedRLEnvCfg):
 
+    scene : MySceneCfg = MySceneCfg(num_envs=8192, env_spacing=2.5)
     # Basic settings
     observations: KyonObservationsCfg = KyonObservationsCfg()
     actions: KyonActionsCfg = KyonActionsCfg()
@@ -390,7 +391,6 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
     
     def __post_init__(self):
         # post init of parent
-        super().__post_init__()
 
         # general settings
         self.decimation = 10  # 50 Hz
