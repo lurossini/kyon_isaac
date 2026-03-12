@@ -14,27 +14,60 @@ from isaaclab.utils.math import sample_uniform
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv, ManagerBasedEnv
 
+
+# utility --------------------------------------------------------------------
+
+def _normalize_env_ids(env, env_ids):
+    """Convert ``env_ids`` to a flat :class:`torch.Tensor` of indices.
+
+    ``env_ids`` may come from the event manager in several forms:
+
+    * :class:`torch.Tensor` of arbitrary shape (e.g. a grid produced by slicing)
+    * ``None`` when the caller wants "all environments"
+    * a ``slice`` object (used internally by the manager for convenience)
+
+    The physics APIs expect a one-dimensional tensor of indices, so we handle
+    these cases here and return a new tensor on ``env.device``.
+    """
+    if env_ids is None or isinstance(env_ids, slice):
+        # slice(None) or None -- all environments
+        return torch.arange(env.num_envs, device=env.device)
+    # otherwise assume it behaves like a tensor and flatten it
+    return env_ids.flatten()
+
+
 def reset_joint_target_to_default(env: ManagerBasedRLEnv,  env_ids: torch.Tensor, asset_cfg: SceneEntityCfg):
     """Reset the joint position and velocity target to defaults"""
+    env_ids_flat = _normalize_env_ids(env, env_ids)
+
     articulation_asset: Articulation = env.scene[asset_cfg.name]
 
     # obtain default joint positions
-    default_joint_pos = articulation_asset.data.default_joint_pos[env_ids][:, asset_cfg.joint_ids].clone()
-    default_joint_vel = articulation_asset.data.default_joint_vel[env_ids][:, asset_cfg.joint_ids].clone()
+    default_joint_pos = articulation_asset.data.default_joint_pos[env_ids_flat][:, asset_cfg.joint_ids].clone()
+    default_joint_vel = articulation_asset.data.default_joint_vel[env_ids_flat][:, asset_cfg.joint_ids].clone()
     # reset joint targets if required
-    articulation_asset.set_joint_position_target(default_joint_pos, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
-    articulation_asset.data.joint_pos[env_ids][:, asset_cfg.joint_ids] = default_joint_pos
-    articulation_asset.set_joint_velocity_target(default_joint_vel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
-    articulation_asset.data.joint_vel[env_ids][:, asset_cfg.joint_ids] = default_joint_vel
+    articulation_asset.set_joint_position_target(
+        default_joint_pos, joint_ids=asset_cfg.joint_ids, env_ids=env_ids_flat
+    )
+    articulation_asset.data.joint_pos[env_ids_flat][:, asset_cfg.joint_ids] = default_joint_pos
+    articulation_asset.set_joint_velocity_target(
+        default_joint_vel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids_flat
+    )
+    articulation_asset.data.joint_vel[env_ids_flat][:, asset_cfg.joint_ids] = default_joint_vel
 
 def random_joint_position_velocity(env, env_ids, asset_cfg, pos_lims, vel_lims, rel_standing_envs=0.1):
     """Sample a random joint position and velocity in a user defined range"""
+    # "env_ids" may be ``None``/``slice`` (apply to all envs) or a tensor of
+    # arbitrary shape.  normalise to a flat tensor so that indexing further
+    # down is consistent.
+    env_ids_flat = _normalize_env_ids(env, env_ids)
+
     articulation_asset = env.scene[asset_cfg.name]
 
     high_vel, low_vel = vel_lims[0], vel_lims[1]
     high_pos, low_pos = pos_lims[0], pos_lims[1]
 
-    num_envs_local = len(env_ids)
+    num_envs_local = env_ids_flat.numel()
     num_joints = len(asset_cfg.joint_ids)
 
     random_jvel = (high_vel - low_vel) * torch.rand(num_envs_local, num_joints, device=env.device) + low_vel
@@ -45,13 +78,19 @@ def random_joint_position_velocity(env, env_ids, asset_cfg, pos_lims, vel_lims, 
     standing_local_ids = is_standing_local.nonzero(as_tuple=False).flatten()
 
     if standing_local_ids.numel() > 0:
-        global_ids = env_ids[standing_local_ids]
+        global_ids = env_ids_flat[standing_local_ids]
 
         random_jvel[standing_local_ids] = 0.0
-        random_jpos[standing_local_ids] = (articulation_asset.data.joint_pos_target[global_ids][:, asset_cfg.joint_ids])
+        random_jpos[standing_local_ids] = (
+            articulation_asset.data.joint_pos_target[global_ids][:, asset_cfg.joint_ids]
+        )
 
-    articulation_asset.set_joint_position_target(random_jpos, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
-    articulation_asset.set_joint_velocity_target(random_jvel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)
+    articulation_asset.set_joint_position_target(
+        random_jpos, joint_ids=asset_cfg.joint_ids, env_ids=env_ids_flat
+    )
+    articulation_asset.set_joint_velocity_target(
+        random_jvel, joint_ids=asset_cfg.joint_ids, env_ids=env_ids_flat
+    )
 
 
 def reset_joints_around_default(
@@ -67,23 +106,27 @@ def reset_joints_around_default(
     The ranges are clipped to fit inside the soft joint limits. The sampled values are then set into the physics
     simulation.
     """
+    # the caller may supply a grid of ids (e.g. [rows, cols]) – flatten to a 1‑D
+    # tensor so that arithmetic and indexing below behave predictably.
+    env_ids_flat = env_ids.flatten()
+
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
     # get default joint state
-    joint_min_pos = asset.data.default_joint_pos[env_ids[:, None], asset_cfg.joint_ids] + position_range[0]
-    joint_max_pos = asset.data.default_joint_pos[env_ids[:, None], asset_cfg.joint_ids] + position_range[1]
-    joint_min_vel = asset.data.default_joint_vel[env_ids[:, None], asset_cfg.joint_ids] + velocity_range[0]
-    joint_max_vel = asset.data.default_joint_vel[env_ids[:, None], asset_cfg.joint_ids] + velocity_range[1]
+    joint_min_pos = asset.data.default_joint_pos[env_ids_flat[:, None], asset_cfg.joint_ids] + position_range[0]
+    joint_max_pos = asset.data.default_joint_pos[env_ids_flat[:, None], asset_cfg.joint_ids] + position_range[1]
+    joint_min_vel = asset.data.default_joint_vel[env_ids_flat[:, None], asset_cfg.joint_ids] + velocity_range[0]
+    joint_max_vel = asset.data.default_joint_vel[env_ids_flat[:, None], asset_cfg.joint_ids] + velocity_range[1]
     # clip pos to range
-    joint_pos_limits = asset.data.soft_joint_pos_limits[env_ids[:, None], asset_cfg.joint_ids, ...]
+    joint_pos_limits = asset.data.soft_joint_pos_limits[env_ids_flat[:, None], asset_cfg.joint_ids, ...]
     joint_min_pos = torch.clamp(joint_min_pos, min=joint_pos_limits[..., 0], max=joint_pos_limits[..., 1])
     joint_max_pos = torch.clamp(joint_max_pos, min=joint_pos_limits[..., 0], max=joint_pos_limits[..., 1])
     # clip vel to range
-    joint_vel_abs_limits = asset.data.soft_joint_vel_limits[env_ids[:, None], asset_cfg.joint_ids]
+    joint_vel_abs_limits = asset.data.soft_joint_vel_limits[env_ids_flat[:, None], asset_cfg.joint_ids]
     joint_min_vel = torch.clamp(joint_min_vel, min=-joint_vel_abs_limits, max=joint_vel_abs_limits)
     joint_max_vel = torch.clamp(joint_max_vel, min=-joint_vel_abs_limits, max=joint_vel_abs_limits)
     # sample these values randomly
     joint_pos = sample_uniform(joint_min_pos, joint_max_pos, joint_min_pos.shape, joint_min_pos.device)
     joint_vel = sample_uniform(joint_min_vel, joint_max_vel, joint_min_vel.shape, joint_min_vel.device)
     # set into the physics simulation
-    asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids, joint_ids=asset_cfg.joint_ids)
+    asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids_flat, joint_ids=asset_cfg.joint_ids)

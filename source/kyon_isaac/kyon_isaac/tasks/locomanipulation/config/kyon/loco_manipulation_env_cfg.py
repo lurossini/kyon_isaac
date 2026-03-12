@@ -151,8 +151,11 @@ class RewardsCfg:
                 ),
                 "lb_action_regularization": RewTerm(
                     func=kyon_mdp.action_regularization,
-                      weight=-1,
-                      params={"action_name": "pre_trained_policy_action"}),
+                    weight=-1,
+                    params={
+                        "action_name": "pre_trained_policy_action"
+                    }
+                ),
                 "left_ee_pos_tracking": {
                     "left_ee_pos_tracking": RewTerm(
                         func=kyon_mdp.position_command_error_gauss,

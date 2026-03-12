@@ -76,7 +76,7 @@ class KyonCommandsCfg:
     )
 
 @configclass
-class KyonObservationsMjxCfg:
+class KyonObservationsCfg:
     """Observation specifications for the MDP."""
 
     @configclass
@@ -267,10 +267,15 @@ class KyonRewardsCfg:
         weight=5.0,
         params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
     )
+    # base_linear_velocity = RewardTermCfg(
+    #     func=spot_mdp.base_linear_velocity_reward,
+    #     weight=10.0,
+    #     params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
+    # )
     base_linear_velocity = RewardTermCfg(
-        func=spot_mdp.base_linear_velocity_reward,
-        weight=5.0,
-        params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
+        func=spot_mdp.base_linear_velocity_reward_anymal,
+        weight=10.0,
+        params={"std": 1.0, "asset_cfg": SceneEntityCfg("robot")},
     )
     # foot_clearance = RewardTermCfg(
     #     func=spot_mdp.foot_clearance_reward,
@@ -325,17 +330,16 @@ class KyonRewardsCfg:
     )
     joint_pos = RewardTermCfg(
         func=kyon_mdp.joint_position_on_wheels_penalty,
-        weight=-1.4,
+        weight=-0.7,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_pitch_.*", "knee_.*"]),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"]),
             "stand_still_scale": 5.0,
-            "velocity_threshold": 0.5,
         },
     )
     joint_torques = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
         weight=-5.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_pitch_.*", "knee_.*"])},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"])},
     )
     joint_vel = RewardTermCfg(
         func=spot_mdp.joint_velocity_penalty,
@@ -370,7 +374,7 @@ class KyonTerminationsCfg:
 class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 
     # Basic settings
-    observations: KyonObservationsMjxCfg = KyonObservationsMjxCfg()
+    observations: KyonObservationsCfg = KyonObservationsCfg()
     actions: KyonActionsCfg = KyonActionsCfg()
     commands: KyonCommandsCfg = KyonCommandsCfg()
 
