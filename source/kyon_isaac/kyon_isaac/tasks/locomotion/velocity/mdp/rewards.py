@@ -200,7 +200,7 @@ def maximise_contact_time(
     # cmd = torch.norm(env.command_manager.get_command("base_velocity")[:, 1:3], dim=1)
     # reward = torch.where(cmd > 0.0, torch.sum(current_contact_time, dim=1), 0)
 
-    return torch.square(torch.linalg.norm(current_contact_time, dim=1))
+    return torch.sum(current_contact_time, dim=1)
 
 
 def test_hierarchy(
