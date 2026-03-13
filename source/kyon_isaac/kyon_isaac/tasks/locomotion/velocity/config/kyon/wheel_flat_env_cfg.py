@@ -257,7 +257,7 @@ class KyonRewardsCfg:
     # )
     contact_time = RewardTermCfg(
         func=kyon_mdp.maximise_contact_time,
-        weight=-5.0e-2,
+        weight=5.0e-2,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
         }
