@@ -80,13 +80,32 @@ def joint_position_penalty(
     return torch.where(cmd > 0.0, reward, stand_still_scale * reward)
 
 def joint_position_on_wheels_penalty(
-    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, stand_still_scale: float
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, stand_still_scale: float, velocity_threshold: float = 0.1
 ) -> torch.Tensor:
     """Penalize joint position error from default on the articulation."""
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
     reward = torch.linalg.norm((asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]), dim=1)
-    return stand_still_scale * reward
+    cmd = torch.linalg.norm(env.command_manager.get_command("base_velocity"), dim=1)
+    return torch.where(cmd > velocity_threshold, reward, stand_still_scale * reward)
+
+def joint_acceleration_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize joint accelerations on the articulation."""
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    return torch.linalg.norm((asset.data.joint_acc[:, asset_cfg.joint_ids]), dim=1)
+
+def joint_velocity_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize joint velocities on the articulation."""
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    return torch.linalg.norm((asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
+
+def joint_torques_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize joint torques on the articulation."""
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    return torch.linalg.norm((asset.data.applied_torque[:, asset_cfg.joint_ids]), dim=1)
 
 def cost_orientation_with_gravity(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg
@@ -145,12 +164,6 @@ def orient_towards_goal(
     
     sigma = 0.3
     return torch.exp(-(angle**2) / (2 * sigma**2))
-
-def joint_velocity_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Penalize joint velocities on the articulation."""
-    # extract the used quantities (to enable type-hinting)
-    asset: Articulation = env.scene[asset_cfg.name]
-    return torch.linalg.norm((asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
 
 
 def orientation_command_error(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg) -> torch.Tensor:

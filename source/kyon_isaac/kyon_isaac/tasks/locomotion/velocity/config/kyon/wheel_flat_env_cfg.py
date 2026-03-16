@@ -285,13 +285,13 @@ class KyonRewardsCfg:
     #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
     #     },
     # )
-    contact_time = RewardTermCfg(
-        func=kyon_mdp.maximise_contact_time,
-        weight=1.0e-1,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
-        }
-    )
+    # contact_time = RewardTermCfg(
+    #     func=kyon_mdp.maximise_contact_time,
+    #     weight=1.0e-1,
+    #     params={
+    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
+    #     }
+    # )
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
         weight=5.0,
@@ -354,28 +354,35 @@ class KyonRewardsCfg:
     #     },
     # )
     joint_acc = RewardTermCfg(
-        func=spot_mdp.joint_acceleration_penalty,
+        func=kyon_mdp.joint_acceleration_penalty,
         weight=-1.0e-4,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"])},
     )
     joint_pos = RewardTermCfg(
         func=kyon_mdp.joint_position_on_wheels_penalty,
-        weight=-0.7,
+        weight=-0.5,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"]),
             "stand_still_scale": 5.0,
         },
     )
     joint_torques = RewardTermCfg(
-        func=spot_mdp.joint_torques_penalty,
+        func=kyon_mdp.joint_torques_penalty,
         weight=-5.0e-4,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"])},
     )
     joint_vel = RewardTermCfg(
-        func=spot_mdp.joint_velocity_penalty,
-        weight=-5.0e-2,
+        func=kyon_mdp.joint_velocity_penalty,
+        weight=-5.0e-1,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"])},
     )
+    joint_acc_wheel = RewardTermCfg(
+        func=kyon_mdp.joint_acceleration_penalty,
+        weight=-1.0e-5,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["wheel_.*"])},
+    )
+    # termination_penalty = RewardTermCfg(func=mdp.is_terminated, weight=-400.0)
+
     # contact_forces = RewardTermCfg(
     #     func=kyon_mdp.min_contact_forces,
     #     weight=-5.0e-4,
