@@ -17,13 +17,15 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg, TiledCameraCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
-from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
+from isaaclab.assets import Articulation, ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, MySceneCfg
 
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
+
+import torch
 # from kyon_isaac.sensors import ActionHistorySensorCfg
 
 
@@ -49,6 +51,21 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
         "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
             proportion=0.2, noise_range=(0.02, 0.05), noise_step=0.02, border_width=0.25
         ),
+    },
+)
+
+FLAT_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
+    size=(16.0, 16.0),
+    border_width=40.0,
+    num_rows=9,
+    num_cols=21,
+    horizontal_scale=0.1,
+    vertical_scale=0.005,
+    slope_threshold=None,
+    difficulty_range=(0.0, 0.0),
+    use_cache=False,
+    sub_terrains={
+        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=1.0),
     },
 )
 
@@ -161,6 +178,19 @@ class KyonEventCfg:
         },
     )
 
+    physics_material_wheel = EventTerm(
+        func=mdp.randomize_rigid_body_material,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="wheel_.*"),
+            "static_friction_range": (1.5, 2.2),
+            "dynamic_friction_range": (1.5, 2.0),
+            "restitution_range": (0.0, 0.0),
+            "num_buckets": 64,
+            "make_consistent": True,
+        },
+    )
+
     actuator_gains = EventTerm(
         func=mdp.randomize_actuator_gains,
         mode="startup",
@@ -257,7 +287,7 @@ class KyonRewardsCfg:
     # )
     contact_time = RewardTermCfg(
         func=kyon_mdp.maximise_contact_time,
-        weight=5.0e-2,
+        weight=1.0e-1,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
         }
@@ -267,16 +297,16 @@ class KyonRewardsCfg:
         weight=5.0,
         params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
     )
-    # base_linear_velocity = RewardTermCfg(
-    #     func=spot_mdp.base_linear_velocity_reward,
-    #     weight=10.0,
-    #     params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
-    # )
     base_linear_velocity = RewardTermCfg(
-        func=kyon_mdp.base_linear_velocity_reward_anymal,
+        func=spot_mdp.base_linear_velocity_reward,
         weight=5.0,
-        params={"std": 1.0, "asset_cfg": SceneEntityCfg("robot")},
+        params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
     )
+    # base_linear_velocity = RewardTermCfg(
+        # func=kyon_mdp.base_linear_velocity_reward_anymal,
+        # weight=5.0,
+        # params={"std": 1.0, "asset_cfg": SceneEntityCfg("robot")},
+    # )
     # foot_clearance = RewardTermCfg(
     #     func=spot_mdp.foot_clearance_reward,
     #     # weight=0.5,
@@ -326,7 +356,7 @@ class KyonRewardsCfg:
     joint_acc = RewardTermCfg(
         func=spot_mdp.joint_acceleration_penalty,
         weight=-1.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_pitch_.*", "knee_.*"])},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"])},
     )
     joint_pos = RewardTermCfg(
         func=kyon_mdp.joint_position_on_wheels_penalty,
@@ -417,8 +447,8 @@ class KyonFlatEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.terrain = TerrainImporterCfg(
             prim_path="/World/ground",
             terrain_type="generator",
-            terrain_generator=COBBLESTONE_ROAD_CFG,
-            max_init_terrain_level=COBBLESTONE_ROAD_CFG.num_rows - 1,
+            terrain_generator=FLAT_ROAD_CFG,
+            max_init_terrain_level=FLAT_ROAD_CFG.num_rows - 1,
             collision_group=-1,
             physics_material=sim_utils.RigidBodyMaterialCfg(
                 friction_combine_mode="multiply",

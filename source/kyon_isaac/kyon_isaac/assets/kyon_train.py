@@ -97,8 +97,8 @@ KYON_FULL_BODY_CFG_TRAIN = ArticulationCfg(
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=True,
-            solver_position_iteration_count=4,
-            solver_velocity_iteration_count=0,
+            solver_position_iteration_count=8,
+            solver_velocity_iteration_count=2,
             sleep_threshold=0.005,
             stabilization_threshold=0.001,
             fix_root_link=False,
@@ -326,10 +326,10 @@ KYON_WHEEL_BODY_CFG_TRAIN = ArticulationCfg(
         "motorWheel": DelayedPDActuatorCfg(
             joint_names_expr=["wheel_.*"],
             # saturation_effort=185,
-            effort_limit=25,
+            effort_limit=100,
             velocity_limit=30,
             stiffness=0, #4000,
-            damping=50,
+            damping=60,
             armature=0.01,
             friction=0.01,
             dynamic_friction=0.01,
