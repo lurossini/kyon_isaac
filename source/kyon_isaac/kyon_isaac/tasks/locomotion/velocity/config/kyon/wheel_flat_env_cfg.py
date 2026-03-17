@@ -275,16 +275,16 @@ class KyonEventCfg:
 @configclass
 class KyonRewardsCfg:
     # -- task
-    # air_time = RewardTermCfg(
-    #     func=spot_mdp.air_time_reward,
-    #     weight=5.0,
-    #     params={
-    #         "mode_time": 0.3,
-    #         "velocity_threshold": 0.5,
-    #         "asset_cfg": SceneEntityCfg("robot"),
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
-    #     },
-    # )
+    air_time = RewardTermCfg(
+        func=kyon_mdp.air_time_reward_wheels,
+        weight=5.0,
+        params={
+            "mode_time": 0.3,
+            "velocity_threshold": 0.5,
+            "asset_cfg": SceneEntityCfg("robot"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*"),
+        },
+    )
     # contact_time = RewardTermCfg(
     #     func=kyon_mdp.maximise_contact_time,
     #     weight=1.0e-1,
@@ -302,11 +302,6 @@ class KyonRewardsCfg:
         weight=5.0,
         params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
     )
-    # base_linear_velocity = RewardTermCfg(
-        # func=kyon_mdp.base_linear_velocity_reward_anymal,
-        # weight=5.0,
-        # params={"std": 1.0, "asset_cfg": SceneEntityCfg("robot")},
-    # )
     # foot_clearance = RewardTermCfg(
     #     func=spot_mdp.foot_clearance_reward,
     #     # weight=0.5,

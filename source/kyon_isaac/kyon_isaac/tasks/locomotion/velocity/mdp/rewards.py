@@ -107,6 +107,35 @@ def joint_torques_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> 
     asset: Articulation = env.scene[asset_cfg.name]
     return torch.linalg.norm((asset.data.applied_torque[:, asset_cfg.joint_ids]), dim=1)
 
+def air_time_reward_wheels(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    sensor_cfg: SceneEntityCfg,
+    mode_time: float,
+    velocity_threshold: float,
+) -> torch.Tensor:
+    """Reward longer feet air and contact time."""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    asset: Articulation = env.scene[asset_cfg.name]
+    if contact_sensor.cfg.track_air_time is False:
+        raise RuntimeError("Activate ContactSensor's track_air_time!")
+    # compute the reward
+    current_air_time = contact_sensor.data.current_air_time[:, sensor_cfg.body_ids]
+    current_contact_time = contact_sensor.data.current_contact_time[:, sensor_cfg.body_ids]
+
+    t_max = torch.max(current_air_time, current_contact_time)
+    t_min = torch.clip(t_max, max=mode_time)
+    stance_cmd_reward = torch.clip(current_contact_time - current_air_time, -mode_time, mode_time)
+    cmd = torch.norm(env.command_manager.get_command("base_velocity")[:, 1:3], dim=1).unsqueeze(dim=1).expand(-1, 4)
+    body_vel = torch.linalg.norm(asset.data.root_lin_vel_b[:, 1:3], dim=1).unsqueeze(dim=1).expand(-1, 4)
+    reward = torch.where(
+        torch.logical_or(cmd > 0.0, body_vel > velocity_threshold),
+        torch.where(t_max < mode_time, t_min, 0),
+        stance_cmd_reward,
+    )
+    return torch.sum(reward, dim=1)
+
 def cost_orientation_with_gravity(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg
 ) -> torch.Tensor:
