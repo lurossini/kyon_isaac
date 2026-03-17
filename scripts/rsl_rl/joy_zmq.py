@@ -48,8 +48,8 @@ def main():
     global seq
     while True:
         try:
-            msg.axes.clear()
-            msg.buttons.clear()
+            del msg.axes[:]
+            del msg.buttons[:]
             pygame.event.pump()
             for i in range(joystick.get_numaxes()):
                 msg.seq = seq
