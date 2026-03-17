@@ -32,8 +32,8 @@ import torch
 ##
 # Pre-defined configs
 ##
-from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_WHEEL_BODY_CFG_TRAIN
-from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_WHEEL_BODY_CFG_PLAY
+from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_WHEEL_BODY_CFG_TRAIN, KYON_SIMPLE_WHEEL_BODY_CFG_TRAIN
+from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_WHEEL_BODY_CFG_PLAY, KYON_SIMPLE_WHEEL_BODY_CFG_PLAY
 
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
@@ -501,7 +501,7 @@ class KyonWheelFlatEnvCfg(KyonFlatEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
-        self.scene.robot = KYON_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_SIMPLE_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.num_envs = 8192
 
         self.events.reset_arms = EventTerm(
@@ -516,7 +516,7 @@ class KyonWheelFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
-        self.scene.robot = KYON_WHEEL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_SIMPLE_WHEEL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.episode_length_s = 100
         self.scene.num_envs = 1
 
