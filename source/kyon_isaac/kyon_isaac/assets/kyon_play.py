@@ -205,8 +205,6 @@ KYON_WHEEL_BODY_CFG_PLAY = ArticulationCfg(
             friction=0.01,
             dynamic_friction=0.01,
             viscous_friction=0.01,
-            dynamic_friction=0.01,
-            viscous_friction=0.01,
         ),
     },
     #TODO what these do?
