@@ -84,6 +84,7 @@ class ZmqRobot:
         self.joint_cmd.posRef.extend(pos_ref)
 
     def setVelocityReference(self, vel_ref: np.ndarray):
+        self.joint_cmd.velRef.clear()
         self.joint_cmd.velRef.extend(vel_ref)
 
     def setEffortReference(self, tor_ref: np.ndarray):

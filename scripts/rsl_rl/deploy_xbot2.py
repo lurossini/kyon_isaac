@@ -222,28 +222,19 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
-            # env stepping
-            obs = env.step(actions)
+            
             if args_cli.interactive:
                 while True:
                     try:
                         msg = socket.recv(flags=zmq.NOBLOCK)
                         rx_msg.ParseFromString(msg)
-                        ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
+                        ref = [-3 * rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
                     except zmq.Again:
                         break     
-                obs['policy'][0, 6:9] = torch.Tensor(ref)   
-            if args_cli.keyboard:
-                obs['policy'][0, 6:9] = torch.Tensor(kio.get_key())
-            if args_cli.gui:
-                while True:
-                    try:
-                        msg = socket.recv_json(flags=zmq.NOBLOCK)
-                        ref = [msg['vref'][0], msg['vref'][1], msg['vref'][5]]
-                    except zmq.Again:
-                        break   
-                obs['policy'][0, 6:9] = torch.Tensor(ref)  
-            # obs, _, _, _ = env.step(actions)
+                env.unwrapped.command_manager.get_term('base_velocity').vel_command_b = torch.Tensor(ref).unsqueeze(0).repeat(env.unwrapped.num_envs, 1).float()
+
+            # env stepping
+            obs = env.step(actions)
 
         end_time = time.time()
         if i % 100 == 0 and i != 0:

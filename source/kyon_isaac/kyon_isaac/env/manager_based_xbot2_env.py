@@ -35,7 +35,7 @@ class XBot2Robot:
                                        'hip_pitch_1', 'hip_pitch_2', 'hip_pitch_3', 'hip_pitch_4', 
                                        'knee_pitch_1', 'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4']
         
-        arms = True
+        arms = False
         if arms:
             self.joint_names = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4', 
                                 'shoulder_yaw_1', 'shoulder_yaw_2', 
@@ -46,13 +46,28 @@ class XBot2Robot:
                                 'wrist_pitch_1', 'wrist_pitch_2', 
                                 'wrist_yaw_1', 'wrist_yaw_2', 
                                 'dagana_1_clamp_joint', 'dagana_2_clamp_joint']
+
+        wheels = True
+        if wheels:
+            self.joint_names = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4', 
+                                'shoulder_yaw_1', 'shoulder_yaw_2', 
+                                'hip_pitch_1', 'hip_pitch_2', 'hip_pitch_3', 'hip_pitch_4', 
+                                'shoulder_pitch_1', 'shoulder_pitch_2', 'knee_pitch_1', 
+                                'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4', 
+                                'elbow_pitch_1', 'elbow_pitch_2',
+                                'ankle_yaw_1', 'ankle_yaw_2', 'ankle_yaw_3', 'ankle_yaw_4',
+                                'wrist_pitch_1', 'wrist_pitch_2', 
+                                'wheel_joint_1', 'wheel_joint_2', 'wheel_joint_3', 'wheel_joint_4',
+                                'wrist_yaw_1', 'wrist_yaw_2', 
+                                'dagana_1_clamp_joint', 'dagana_2_clamp_joint']
             
-        self.fixed_joints = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1', 'dagana_1_clamp_joint'
-                             'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2', 'wrist_pitch_2', 'wrist_yaw_2', 'dagana_2_clamp_joint']
+        self.fixed_joints = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1', 'dagana_1_clamp_joint',
+                             'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2', 'wrist_pitch_2', 'wrist_yaw_2', 'dagana_2_clamp_joint',
+                             'ankle_yaw_1', 'ankle_yaw_2', 'ankle_yaw_3', 'ankle_yaw_4']
         
         self.wheel_joints = [f'wheel_joint_{i}' for i in range(1, 5)]
         
-        ctrl_mode = [0 if j in self.fixed_joints else 25 for j in self.joint_names]
+        ctrl_mode = [0 if j in self.fixed_joints else (26 if j in self.wheel_joints else 25) for j in self.joint_names]
 
         self.idx_xbot_to_isaac = []
         for jn in self.joint_names:
@@ -80,8 +95,8 @@ class XBot2Robot:
         self.xbot_robot.setEffortReference(np.zeros(self.num_joints))
         self.xbot_robot.setStiffness(self.stiffness)
         self.xbot_robot.setDamping(self.damping)
-        self.xbot_robot.setCtrlMode(np.ones(self.num_joints, dtype=int) * 25)
-        # self.xbot_robot.setCtrlMode(np.array(ctrl_mode))
+        # self.xbot_robot.setCtrlMode(np.ones(self.num_joints, dtype=int) * 25)
+        self.xbot_robot.setCtrlMode(np.array(ctrl_mode))
         self.time = 0
 
         for i, jname in enumerate(self.joint_names):
@@ -137,7 +152,11 @@ class XBot2ContactSensor:
     def __init__(self, cfg: ContactSensorCfg):
         self.cfg = cfg
         self.data = ContactSensorData()
-        self.body_names: list[str] = ['contact_1', 'contact_2', 'contact_3', 'contact_4']
+        wheels = True
+        if wheels:  
+            self.body_names:list[str] = ['wheel_1', 'wheel_2', 'wheel_3', 'wheel_4']
+        else:
+            self.body_names: list[str] = ['contact_1', 'contact_2', 'contact_3', 'contact_4']
         self.num_bodies: int = len(self.body_names)
         self.data.net_forces_w_history = torch.zeros((1, self.cfg.history_length, self.num_bodies, 3))
     
