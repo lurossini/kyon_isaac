@@ -285,13 +285,13 @@ class KyonRewardsCfg:
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*"),
         },
     )
-    # contact_time = RewardTermCfg(
-    #     func=kyon_mdp.maximise_contact_time,
-    #     weight=1.0e-1,
-    #     params={
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
-    #     }
-    # )
+    contact_time = RewardTermCfg(
+        func=kyon_mdp.maximise_contact_time,
+        weight=1.0e-1,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
+        }
+    )
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
         weight=5.0,
@@ -313,18 +313,6 @@ class KyonRewardsCfg:
     #         "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
     #     },
     # )
-    # gait = RewardTermCfg(
-    #     func=kyon_mdp.GaitReward,
-    #     weight=10.0,
-    #     params={
-    #         "std": 0.1,
-    #         "max_err": 0.2,
-    #         "velocity_threshold": 0.5,
-    #         "synced_feet_pair_names": (("contact_1", "contact_4"), ("contact_2", "contact_3")),
-    #         "asset_cfg": SceneEntityCfg("robot"),
-    #         "sensor_cfg": SceneEntityCfg("contact_forces"),
-    #     },
-    # )
 
     # -- penalties
     action_smoothness = RewardTermCfg(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
@@ -339,15 +327,6 @@ class KyonRewardsCfg:
     base_orientation = RewardTermCfg(
         func=spot_mdp.base_orientation_penalty, weight=-3, params={"asset_cfg": SceneEntityCfg("robot")}
     )
-    # foot_slip = RewardTermCfg(
-    #     func=spot_mdp.foot_slip_penalty,
-    #     weight=-0.5,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
-    #         "threshold": 1.0,
-    #     },
-    # )
     joint_acc = RewardTermCfg(
         func=kyon_mdp.joint_acceleration_penalty,
         weight=-1.0e-4,
@@ -368,7 +347,7 @@ class KyonRewardsCfg:
     )
     joint_vel = RewardTermCfg(
         func=kyon_mdp.joint_velocity_penalty,
-        weight=-5.0e-1,
+        weight=-5.0e-2,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"])},
     )
     joint_acc_wheel = RewardTermCfg(
@@ -376,14 +355,6 @@ class KyonRewardsCfg:
         weight=-1.0e-5,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=["wheel_.*"])},
     )
-    # termination_penalty = RewardTermCfg(func=mdp.is_terminated, weight=-400.0)
-
-    # contact_forces = RewardTermCfg(
-    #     func=kyon_mdp.min_contact_forces,
-    #     weight=-5.0e-4,
-    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")}
-    # )
-
 
 @configclass
 class KyonTerminationsCfg:
@@ -417,7 +388,7 @@ class KyonFlatEnvCfg(ManagerBasedRLEnvCfg):
     events: KyonEventCfg = KyonEventCfg()
 
     # Viewer
-    viewer = ViewerCfg(eye=(-1.5, -4.5, 0.3), origin_type="world", env_index=0, asset_name="robot")
+    viewer = ViewerCfg(eye=(-1.5, -4.5, 0.3), origin_type="asset_root", env_index=0, asset_name="robot")
 
     # Imu
     

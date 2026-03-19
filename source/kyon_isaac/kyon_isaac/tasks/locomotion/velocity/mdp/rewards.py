@@ -130,7 +130,7 @@ def air_time_reward_wheels(
     cmd = torch.norm(env.command_manager.get_command("base_velocity")[:, 1:3], dim=1).unsqueeze(dim=1).expand(-1, 4)
     body_vel = torch.linalg.norm(asset.data.root_lin_vel_b[:, 1:3], dim=1).unsqueeze(dim=1).expand(-1, 4)
     reward = torch.where(
-        torch.logical_or(cmd > 0.0, body_vel > velocity_threshold),
+        torch.logical_or(cmd > 0.1, body_vel > velocity_threshold),
         torch.where(t_max < mode_time, t_min, 0),
         stance_cmd_reward,
     )
