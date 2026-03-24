@@ -215,11 +215,11 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                     try:
                         msg = socket.recv(flags=zmq.NOBLOCK)
                         rx_msg.ParseFromString(msg)
-                        ref = [-3 * rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
+                        ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
                     except zmq.Again:
                         break     
-                env.unwrapped.command_manager.get_term('base_velocity').vel_command_b = torch.Tensor(ref).unsqueeze(0).repeat(env.unwrapped.num_envs, 1).float()
-
+                env.unwrapped.command_manager.get_term('base_velocity').set_command(torch.Tensor(ref).unsqueeze(0).repeat(env.unwrapped.num_envs, 1).float())
+                
             # env stepping
             obs, _, _, _ = env.step(actions)
 

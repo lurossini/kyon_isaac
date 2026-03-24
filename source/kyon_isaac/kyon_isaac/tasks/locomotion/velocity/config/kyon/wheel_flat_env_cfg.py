@@ -92,6 +92,18 @@ class KyonCommandsCfg:
         ),
     )
 
+@configclass 
+class KyonCommandsPLAYCfg:
+    """Command specifications for the MDP in play mode."""
+
+    base_velocity = kyon_mdp.VelocityCommandCfg(
+        asset_name="robot",
+        debug_vis=True,
+        ranges=kyon_mdp.VelocityCommandCfg.Ranges(
+            lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.0, 1.0)
+        ),
+    )
+
 @configclass
 class KyonObservationsCfg:
     """Observation specifications for the MDP."""
@@ -356,10 +368,12 @@ class KyonTerminationsCfg:
     )
 
 
-@configclass
-class KyonFlatEnvCfg(ManagerBasedRLEnvCfg):
 
-    scene : MySceneCfg = MySceneCfg(num_envs=8192, env_spacing=2.5)
+@configclass
+class KyonWheelFlatEnvCfg(ManagerBasedRLEnvCfg):
+
+    scene: MySceneCfg = MySceneCfg(num_envs=8192, env_spacing=2.5)
+
     # Basic settings
     observations: KyonObservationsCfg = KyonObservationsCfg()
     actions: KyonActionsCfg = KyonActionsCfg()
@@ -373,11 +387,7 @@ class KyonFlatEnvCfg(ManagerBasedRLEnvCfg):
     # Viewer
     viewer = ViewerCfg(eye=(-1.5, -4.5, 0.3), origin_type="asset_root", env_index=0, asset_name="robot")
 
-    # Imu
-    
     def __post_init__(self):
-        # post init of parent
-
         # general settings
         self.decimation = 10  # 50 Hz
         self.episode_length_s = 20.0
@@ -392,9 +402,8 @@ class KyonFlatEnvCfg(ManagerBasedRLEnvCfg):
         # we tick all the sensors based on the smallest update period (physics update period)
         self.scene.contact_forces.update_period = self.sim.dt
 
-        
         # switch robot to Kyon
-        self.scene.robot = KYON_LOWER_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # imu
         self.scene.imu_sensor = ImuCfg(prim_path="{ENV_REGEX_NS}/Robot/imu_link")
@@ -423,20 +432,32 @@ class KyonFlatEnvCfg(ManagerBasedRLEnvCfg):
         # no height scan
         self.scene.height_scanner = None
 
+        self.events.reset_arms = EventTerm(
+            func=kyon_mdp.reset_joint_target_to_default, 
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
+            },
+        )
 
-class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
+@configclass
+class KyonWheelFlatEnvCfg_PLAY(KyonWheelFlatEnvCfg):
+
+    commands: KyonCommandsPLAYCfg = KyonCommandsPLAYCfg()
+
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
 
         # make a smaller scene for play
-        self.scene.num_envs = 50
+        self.episode_length_s = 100
+        self.scene.num_envs = 1
         self.scene.env_spacing = 2.5
+
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
 
-        self.scene.robot = KYON_LOWER_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
+        self.scene.robot = KYON_WHEEL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # reduce the number of terrains to save memory
         if self.scene.terrain.terrain_generator is not None:
@@ -447,17 +468,6 @@ class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
         # disable randomization for play
         self.observations.policy.enable_corruption = False
 
-       
-        # remove random pushing event
-
-class KyonWheelFlatEnvCfg(KyonFlatEnvCfg):
-    
-    def __post_init__(self):
-        # post init of parent
-        super().__post_init__()
-        self.scene.robot = KYON_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.num_envs = 8192
-
         self.events.reset_arms = EventTerm(
             func=kyon_mdp.reset_joint_target_to_default, 
             mode="startup",
@@ -466,50 +476,19 @@ class KyonWheelFlatEnvCfg(KyonFlatEnvCfg):
             },
         )
 
-class KyonWheelFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
-    def __post_init__(self) -> None:
-        # post init of parent
-        super().__post_init__()
-        self.scene.robot = KYON_WHEEL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.episode_length_s = 100
-        self.scene.num_envs = 1
-
-        self.events.reset_arms = EventTerm(
-            func=kyon_mdp.reset_joint_target_to_default, 
-            mode="startup",
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
-            },
-        )
-
-class KyonSimpleWheelFlatEnvCfg(KyonFlatEnvCfg):
+@configclass
+class KyonSimpleWheelFlatEnvCfg(KyonWheelFlatEnvCfg):
     
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
         self.scene.robot = KYON_SIMPLE_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.num_envs = 8192
 
-        self.events.reset_arms = EventTerm(
-            func=kyon_mdp.reset_joint_target_to_default, 
-            mode="startup",
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
-            },
-        )
 
-class KyonSimpleWheelFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
+@configclass
+class KyonSimpleWheelFlatEnvCfg_PLAY(KyonWheelFlatEnvCfg_PLAY):
+    
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
         self.scene.robot = KYON_SIMPLE_WHEEL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.episode_length_s = 100
-        self.scene.num_envs = 1
-
-        self.events.reset_arms = EventTerm(
-            func=kyon_mdp.reset_joint_target_to_default, 
-            mode="startup",
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
-            },
-        )
