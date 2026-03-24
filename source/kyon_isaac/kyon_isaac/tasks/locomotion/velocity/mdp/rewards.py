@@ -130,7 +130,7 @@ def air_time_reward_wheels(
     cmd = torch.norm(env.command_manager.get_command("base_velocity")[:, 1:3], dim=1).unsqueeze(dim=1).expand(-1, 4)
     body_vel = torch.linalg.norm(asset.data.root_lin_vel_b[:, 1:3], dim=1).unsqueeze(dim=1).expand(-1, 4)
     reward = torch.where(
-        torch.logical_or(cmd > 0.1, body_vel > velocity_threshold),
+        torch.logical_or(cmd > 0.3, body_vel > velocity_threshold),
         torch.where(t_max < mode_time, t_min, 0),
         stance_cmd_reward,
     )
@@ -227,23 +227,6 @@ def base_linear_velocity_reward_anymal(
     return torch.where(torch.linalg.norm(target, dim=1) > threshold, 
                        torch.exp(-2.0 * torch.square(lin_vel_error) / std) + (target * base_vel).sum(dim=1), 
                        2.0 * torch.exp(-2.0 * torch.square(base_vel_magnitude) / std))
-
-def maximise_contact_time(
-    env: ManagerBasedRLEnv,
-    sensor_cfg: SceneEntityCfg,
-) -> torch.Tensor:
-    """Reward longer feet air and contact time."""
-    # extract the used quantities (to enable type-hinting)
-    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    if contact_sensor.cfg.track_air_time is False:
-        raise RuntimeError("Activate ContactSensor's track_air_time!")
-    # compute the reward
-    current_contact_time = contact_sensor.data.current_contact_time[:, sensor_cfg.body_ids]
-    # cmd = torch.norm(env.command_manager.get_command("base_velocity")[:, 1:3], dim=1)
-    # reward = torch.where(cmd > 0.0, torch.sum(current_contact_time, dim=1), 0)
-
-    return torch.sum(current_contact_time, dim=1)
-
 
 def test_hierarchy(
     env: ManagerBasedRLEnv,

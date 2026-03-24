@@ -74,7 +74,7 @@ FLAT_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
 class KyonActionsCfg:
     """Action specifications for the MDP."""
     joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.5, use_default_offset=True)
-    joint_vel = mdp.JointVelocityActionCfg(asset_name="robot", joint_names=["wheel_.*"], scale=40.)
+    joint_vel = mdp.JointVelocityActionCfg(asset_name="robot", joint_names=["wheel_.*"], scale=30.)
 
 @configclass
 class KyonCommandsCfg:
@@ -285,13 +285,7 @@ class KyonRewardsCfg:
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*"),
         },
     )
-    contact_time = RewardTermCfg(
-        func=kyon_mdp.maximise_contact_time,
-        weight=1.0e-1,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel.*"),
-        }
-    )
+
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
         weight=5.0,
@@ -302,17 +296,6 @@ class KyonRewardsCfg:
         weight=5.0,
         params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
     )
-    # foot_clearance = RewardTermCfg(
-    #     func=spot_mdp.foot_clearance_reward,
-    #     # weight=0.5,
-    #     weight=4.,
-    #     params={
-    #         "std": 0.05,
-    #         "tanh_mult": 2.0,
-    #         "target_height": 0.2,
-    #         "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
-    #     },
-    # )
 
     # -- penalties
     action_smoothness = RewardTermCfg(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
@@ -472,7 +455,7 @@ class KyonWheelFlatEnvCfg(KyonFlatEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
-        self.scene.robot = KYON_SIMPLE_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.num_envs = 8192
 
         self.events.reset_arms = EventTerm(
@@ -484,6 +467,38 @@ class KyonWheelFlatEnvCfg(KyonFlatEnvCfg):
         )
 
 class KyonWheelFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
+    def __post_init__(self) -> None:
+        # post init of parent
+        super().__post_init__()
+        self.scene.robot = KYON_WHEEL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.episode_length_s = 100
+        self.scene.num_envs = 1
+
+        self.events.reset_arms = EventTerm(
+            func=kyon_mdp.reset_joint_target_to_default, 
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
+            },
+        )
+
+class KyonSimpleWheelFlatEnvCfg(KyonFlatEnvCfg):
+    
+    def __post_init__(self):
+        # post init of parent
+        super().__post_init__()
+        self.scene.robot = KYON_SIMPLE_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.num_envs = 8192
+
+        self.events.reset_arms = EventTerm(
+            func=kyon_mdp.reset_joint_target_to_default, 
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
+            },
+        )
+
+class KyonSimpleWheelFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
