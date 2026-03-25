@@ -137,7 +137,6 @@ class RewardsCfg:
         func=kyon_mdp.Hierarchy,
         weight=5.,
         params={
-            # "decay": 1.0,
             "rewards": {
                 "goal_reached": RewTerm(
                     func=kyon_mdp.goal_reached_command,
@@ -162,7 +161,7 @@ class RewardsCfg:
                         weight=1.0,
                         params={
                             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-                            "std": 1.0,
+                            "std": 0.5,
                             "command_name": "left_ee_pose",
                         },
                     ),
@@ -171,7 +170,7 @@ class RewardsCfg:
                         weight=5.0,
                         params={
                             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-                            "std": 0.25,
+                            "std": 0.1,
                             "command_name": "left_ee_pose",
                         },
                     )
@@ -194,7 +193,7 @@ class RewardsCfg:
     # joint space rewards
     left_arm_joint_pos = RewTerm(
         func=kyon_mdp.joint_pos_norm,
-        weight=-0.1,
+        weight=-0.5,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"])
         }
