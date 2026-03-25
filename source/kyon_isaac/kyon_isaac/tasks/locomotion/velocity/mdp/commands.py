@@ -18,7 +18,7 @@ from isaaclab.managers import CommandTermCfg
 from isaaclab.assets import Articulation
 from isaaclab.managers import CommandTerm
 from isaaclab.markers import VisualizationMarkers
-from isaaclab.utils.math import combine_frame_transforms, compute_pose_error, quat_from_euler_xyz, quat_unique, quat_conjugate, quat_apply
+from isaaclab.utils.math import combine_frame_transforms, compute_pose_error, quat_from_euler_xyz, quat_unique, quat_conjugate, quat_apply, quat_mul
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
@@ -492,10 +492,10 @@ class VelocityCommand(CommandTerm):
         # arrow-direction
         heading_angle = torch.atan2(xy_velocity[:, 1], xy_velocity[:, 0])
         zeros = torch.zeros_like(heading_angle)
-        arrow_quat = math_utils.quat_from_euler_xyz(zeros, zeros, heading_angle)
+        arrow_quat = quat_from_euler_xyz(zeros, zeros, heading_angle)
         # convert everything back from base to world frame
         base_quat_w = self.robot.data.root_quat_w
-        arrow_quat = math_utils.quat_mul(base_quat_w, arrow_quat)
+        arrow_quat = quat_mul(base_quat_w, arrow_quat)
 
         return arrow_scale, arrow_quat
 

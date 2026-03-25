@@ -73,6 +73,18 @@ class KyonCommandsCfg:
         ),
     )
 
+@configclass 
+class KyonCommandsPLAYCfg:
+    """Command specifications for the MDP in play mode."""
+
+    base_velocity = kyon_mdp.VelocityCommandCfg(
+        asset_name="robot",
+        debug_vis=True,
+        ranges=kyon_mdp.VelocityCommandCfg.Ranges(
+            lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.0, 1.0)
+        ),
+    )
+
 @configclass
 class KyonObservationsCfg:
     """Observation specifications for the MDP."""
@@ -421,6 +433,9 @@ class KyonFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 
 
 class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
+
+    commands: KyonCommandsPLAYCfg = KyonCommandsPLAYCfg()
+
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
@@ -442,6 +457,8 @@ class KyonFlatEnvCfg_PLAY(KyonFlatEnvCfg):
 
         # disable randomization for play
         self.observations.policy.enable_corruption = False
+
+        self.commands = KyonCommandsPLAYCfg()
 
        
         # remove random pushing event
@@ -473,6 +490,9 @@ class KyonFullFlatEnvCfg(KyonFlatEnvCfg):
         # )
 
 class KyonFullFlatEnvCfg_PLAY(KyonFlatEnvCfg_PLAY):
+
+    commands: KyonCommandsPLAYCfg = KyonCommandsPLAYCfg()
+
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()

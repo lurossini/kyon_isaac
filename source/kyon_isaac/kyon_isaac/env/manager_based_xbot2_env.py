@@ -34,6 +34,7 @@ class XBot2Robot:
         self.joint_names: list[str] = ['hip_roll_1', 'hip_roll_2', 'hip_roll_3', 'hip_roll_4', 
                                        'hip_pitch_1', 'hip_pitch_2', 'hip_pitch_3', 'hip_pitch_4', 
                                        'knee_pitch_1', 'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4']
+                                       
         
         arms = False
         if arms:
@@ -46,6 +47,10 @@ class XBot2Robot:
                                 'wrist_pitch_1', 'wrist_pitch_2', 
                                 'wrist_yaw_1', 'wrist_yaw_2', 
                                 'dagana_1_clamp_joint', 'dagana_2_clamp_joint']
+            
+            self.fixed_joints = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1', 'dagana_1_clamp_joint',
+                                 'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2', 'wrist_pitch_2', 'wrist_yaw_2', 'dagana_2_clamp_joint']
+            ctrl_mode = [0 if j in self.fixed_joints else 25 for j in self.joint_names]
 
         wheels = True
         if wheels:
@@ -55,19 +60,16 @@ class XBot2Robot:
                                 'shoulder_pitch_1', 'shoulder_pitch_2', 'knee_pitch_1', 
                                 'knee_pitch_2', 'knee_pitch_3', 'knee_pitch_4', 
                                 'elbow_pitch_1', 'elbow_pitch_2',
-                                'ankle_yaw_1', 'ankle_yaw_2', 'ankle_yaw_3', 'ankle_yaw_4',
+                                # 'ankle_yaw_1', 'ankle_yaw_2', 'ankle_yaw_3', 'ankle_yaw_4',
                                 'wrist_pitch_1', 'wrist_pitch_2', 
                                 'wheel_joint_1', 'wheel_joint_2', 'wheel_joint_3', 'wheel_joint_4',
                                 'wrist_yaw_1', 'wrist_yaw_2', 
                                 'dagana_1_clamp_joint', 'dagana_2_clamp_joint']
-            
-        self.fixed_joints = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1', 'dagana_1_clamp_joint',
-                             'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2', 'wrist_pitch_2', 'wrist_yaw_2', 'dagana_2_clamp_joint',
-                             'ankle_yaw_1', 'ankle_yaw_2', 'ankle_yaw_3', 'ankle_yaw_4']
-        
-        self.wheel_joints = [f'wheel_joint_{i}' for i in range(1, 5)]
-        
-        ctrl_mode = [0 if j in self.fixed_joints else (26 if j in self.wheel_joints else 25) for j in self.joint_names]
+            self.fixed_joints = ['shoulder_yaw_1', 'shoulder_pitch_1', 'elbow_pitch_1', 'wrist_pitch_1', 'wrist_yaw_1', 'dagana_1_clamp_joint',
+                                 'shoulder_yaw_2', 'shoulder_pitch_2', 'elbow_pitch_2', 'wrist_pitch_2', 'wrist_yaw_2', 'dagana_2_clamp_joint']
+                                 #  'ankle_yaw_1', 'ankle_yaw_2', 'ankle_yaw_3', 'ankle_yaw_4']
+            self.wheel_joints = [f'wheel_joint_{i}' for i in range(1, 5)]   
+            ctrl_mode = [0 if j in self.fixed_joints else (26 if j in self.wheel_joints else 25) for j in self.joint_names]
 
         self.idx_xbot_to_isaac = []
         for jn in self.joint_names:
