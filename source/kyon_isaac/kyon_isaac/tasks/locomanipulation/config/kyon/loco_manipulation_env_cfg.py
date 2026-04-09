@@ -76,7 +76,7 @@ class CommandsCfg:
     
     left_ee_pose = kyon_mdp.UniformPoseCommandCfg(
         asset_name="robot",
-        body_name="wrist_yaw_1_link",
+        body_name="pelvis",
         resampling_time_range=(8.0, 8.0),
         debug_vis=True,
         ranges=kyon_mdp.UniformPoseCommandCfg.Ranges(
@@ -106,7 +106,7 @@ class ActionsCfg:
     # Lower-body locomotion frozen policy
     pre_trained_policy_action: kyon_mdp.PreTrainedPolicyActionCfg = kyon_mdp.PreTrainedPolicyActionCfg(
         asset_name="robot",
-        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/2026-03-09_13-19-17/exported/policy.pt",
+        policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/legged_locomotion/exported/policy.pt",
         low_level_decimation=1,
         low_level_actions=KYON_FULL_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
@@ -133,59 +133,89 @@ class ActionsCfg:
 class RewardsCfg:
 
     # Hierarchical reward
-    hierarchy = RewTerm(
-        func=kyon_mdp.Hierarchy,
-        weight=5.,
+    # hierarchy = RewTerm(
+    #     func=kyon_mdp.Hierarchy,
+    #     weight=5.,
+    #     params={
+    #         "rewards": {
+    #             "move_base": {
+    #                 "goal_reached": RewTerm(
+    #                     func=kyon_mdp.goal_reached_command,
+    #                     weight=1.,
+    #                     params={
+    #                         "asset_cfg": SceneEntityCfg("robot"),
+    #                         "command_name": "left_ee_pose",
+    #                         "std": 0.5,
+    #                         "threshold": 0.
+    #                     }
+    #                 ),
+    #                 "goal_reached_fine_grained": RewTerm(
+    #                     func=kyon_mdp.goal_reached_command,
+    #                     weight=5.,
+    #                     params={
+    #                         "asset_cfg": SceneEntityCfg("robot"),
+    #                         "command_name": "left_ee_pose",
+    #                         "std": 0.1,
+    #                         "threshold": 0.
+    #                     }
+    #                 ),
+    #             },
+                # "lb_action_regularization": RewTerm(
+                #     func=kyon_mdp.action_regularization,
+                #     weight=-1,
+                #     params={
+                #         "action_name": "pre_trained_policy_action"
+                #     }
+                # ),
+                # "left_ee_pos_tracking": {
+                #     "left_ee_pos_tracking": RewTerm(
+                #         func=kyon_mdp.position_command_error_gauss,
+                #         weight=1.0,
+                #         params={
+                #             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+                #             "std": 0.5,
+                #             "command_name": "left_ee_pose",
+                #         },
+                #     ),
+                #     "left_ee_pos_tracking_fine_grained": RewTerm(
+                #         func=kyon_mdp.position_command_error_gauss,
+                #         weight=5.0,
+                #         params={
+                #             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+                #             "std": 0.1,
+                #             "command_name": "left_ee_pose",
+                #         },
+                #     )
+                # },
+                # "left_end_effector_orientation_tracking": RewTerm(
+                #     func=kyon_mdp.orientation_command_error,
+                #     weight=-1,
+                #     params={
+                #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"), "command_name": "left_ee_pose"
+                #     },
+                # ) 
+    #         }
+    #     }
+    # )
+
+    goal_reached = RewTerm(
+        func=kyon_mdp.goal_reached_command_new,
+        weight=1.,
         params={
-            "rewards": {
-                "goal_reached": RewTerm(
-                    func=kyon_mdp.goal_reached_command,
-                    weight=1.,
-                    params={
-                        "asset_cfg": SceneEntityCfg("robot"),
-                        "command_name": "left_ee_pose",
-                        "std": 1.,
-                        "threshold": 0.5
-                    }
-                ),
-                "lb_action_regularization": RewTerm(
-                    func=kyon_mdp.action_regularization,
-                    weight=-1,
-                    params={
-                        "action_name": "pre_trained_policy_action"
-                    }
-                ),
-                "left_ee_pos_tracking": {
-                    "left_ee_pos_tracking": RewTerm(
-                        func=kyon_mdp.position_command_error_gauss,
-                        weight=1.0,
-                        params={
-                            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-                            "std": 0.5,
-                            "command_name": "left_ee_pose",
-                        },
-                    ),
-                    "left_ee_pos_tracking_fine_grained": RewTerm(
-                        func=kyon_mdp.position_command_error_gauss,
-                        weight=5.0,
-                        params={
-                            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-                            "std": 0.1,
-                            "command_name": "left_ee_pose",
-                        },
-                    )
-                },
-                "left_end_effector_orientation_tracking": RewTerm(
-                    func=kyon_mdp.orientation_command_error,
-                    weight=-1,
-                    params={
-                        "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"), "command_name": "left_ee_pose"
-                    },
-                ) 
-            }
+            "asset_cfg": SceneEntityCfg("robot"),
+            "command_name": "left_ee_pose",
         }
     )
-
+    # goal_reached_fine_grained = RewTerm(
+    #     func=kyon_mdp.goal_reached_command,
+    #     weight=5.,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot"),
+    #         "command_name": "left_ee_pose",
+    #         "std": 0.1,
+    #         "threshold": 0.
+    #     }
+    # )
     
     action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-400.0)
@@ -193,7 +223,7 @@ class RewardsCfg:
     # joint space rewards
     left_arm_joint_pos = RewTerm(
         func=kyon_mdp.joint_pos_norm,
-        weight=-0.5,
+        weight=-0.1,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"])
         }
@@ -212,8 +242,6 @@ class RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"])
         },
     )
-
-
 
 @configclass
 class ObservationCfg:
@@ -312,7 +340,7 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
 
         self.sim.dt = KYON_FULL_BODY_ENV_CFG.sim.dt
         self.sim.render_interval = KYON_FULL_BODY_ENV_CFG.decimation
-        self.decimation = KYON_FULL_BODY_ENV_CFG.decimation 
+        self.decimation = KYON_FULL_BODY_ENV_CFG.decimation * 10
 
         # Add termination for arms collisions
         self.terminations.arms_contact = DoneTerm(
@@ -333,8 +361,8 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
 class LocomanipulationKyonSceneCfg_PLAY(LocomanipulationKyonSceneCfg):
 
     # Use custom observations and commands during inference with camera
-    observations: ObservationWithRGBDCfg = ObservationWithRGBDCfg()
-    commands: CommandsVLMCfg = CommandsVLMCfg()
+    # observations: ObservationWithRGBDCfg = ObservationWithRGBDCfg()
+    # commands: CommandsVLMCfg = CommandsVLMCfg()
 
     def __post_init__(self):
         super().__post_init__()
@@ -345,20 +373,20 @@ class LocomanipulationKyonSceneCfg_PLAY(LocomanipulationKyonSceneCfg):
         self.episode_length_s = 100000
 
         # Add camera
-        self.scene.front_up_camera = TiledCameraCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
-            update_period=0.0333,
-            height=600,
-            width=860,
-            data_types=["rgb", "distance_to_image_plane"],
-            debug_vis=True,
-            spawn=sim_utils.PinholeCameraCfg(
-                focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
-            ),
-            offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
-            depth_clipping_behavior="max",
-        )
-        self.image_obs_list = ["front_up_camera"]
+        # self.scene.front_up_camera = TiledCameraCfg(
+        #     prim_path="{ENV_REGEX_NS}/Robot/zed_front_up_mount_link/front_up_camera",
+        #     update_period=0.0333,
+        #     height=600,
+        #     width=860,
+        #     data_types=["rgb", "distance_to_image_plane"],
+        #     debug_vis=True,
+        #     spawn=sim_utils.PinholeCameraCfg(
+        #         focal_length=18.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+        #     ),
+        #     offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+        #     depth_clipping_behavior="max",
+        # )
+        # self.image_obs_list = ["front_up_camera"]
 
         # Table
         self.scene.packing_table = AssetBaseCfg(

@@ -174,6 +174,36 @@ def goal_reached_command(
     curr_pos_w = robot.data.root_pos_w
     distance = torch.norm(des_pos_w[:, :2] - curr_pos_w[:, :2], dim=1)
     return torch.exp(-((distance - threshold)**2) / (2 * std**2))
+    	
+def goal_reached_command_new(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    command_name: str,
+    success_radius: float = 0.05,
+    success_bonus: float = 5.0,
+) -> torch.Tensor:
+    robot: Articulation = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+
+    # target is provided in base frame, convert it back to world frame
+    des_pos_b = command[:, :3]
+    des_pos_w, _ = math.combine_frame_transforms(
+        robot.data.root_pos_w,
+        robot.data.root_quat_w,
+        des_pos_b,
+    )
+
+    # current base position in world frame
+    curr_pos_w = robot.data.root_pos_w
+
+    # x-y distance only
+    distance = torch.norm(des_pos_w[:, :2] - curr_pos_w[:, :2], dim=1)
+
+    # dense distance penalty + sparse success bonus
+    reward = -distance
+    reward += success_bonus * (distance < success_radius).float()
+
+    return reward 
 
 def orient_towards_goal(
     env: ManagerBasedRLEnv,
