@@ -440,6 +440,7 @@ class VelocityCommand(CommandTerm):
         mins = torch.tensor([self.cfg.ranges.lin_vel_x[0], self.cfg.ranges.lin_vel_y[0], self.cfg.ranges.ang_vel_z[0]], device=self.device)
         self.vel_command_b = torch.lerp(mins, maxs, (self.vel_command_b + 1) / 2)
 
+
     def _set_debug_vis_impl(self, debug_vis: bool):
         # set visibility of markers
         # note: parent only deals with callbacks. not their visibility

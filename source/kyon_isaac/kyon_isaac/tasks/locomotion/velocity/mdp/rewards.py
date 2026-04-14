@@ -179,6 +179,7 @@ def goal_reached_command_new(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg,
     command_name: str,
+    threshold: float = 0.0,
     success_radius: float = 0.05,
     success_bonus: float = 5.0,
 ) -> torch.Tensor:
@@ -200,10 +201,28 @@ def goal_reached_command_new(
     distance = torch.norm(des_pos_w[:, :2] - curr_pos_w[:, :2], dim=1)
 
     # dense distance penalty + sparse success bonus
-    reward = -distance
-    reward += success_bonus * (distance < success_radius).float()
+    reward = -torch.abs(distance - threshold)
+    reward += success_bonus * (torch.abs(distance - threshold) < success_radius).float()
 
     return reward 
+
+def goal_reached_command_base_new(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    command_name: str,
+    threshold: float = 0.0,
+    success_radius: float = 0.05,
+    success_bonus: float = 5.0,
+) -> torch.Tensor:
+    command = env.command_manager.get_command(command_name)
+    des_pos_b = command[:, :2]
+
+    ref = torch.tensor([threshold, 0.0], device=des_pos_b.device, dtype=des_pos_b.dtype)
+    error = torch.norm(des_pos_b - ref.unsqueeze(0), dim=1)
+
+    reward = -error
+    reward += success_bonus * (error < success_radius).float()
+    return reward
 
 def orient_towards_goal(
     env: ManagerBasedRLEnv,
@@ -265,7 +284,7 @@ def test_hierarchy(
     
     rewards = rewards["rewards"]
     if len(rewards) < 2: 
-        raise RuntimeError("You should define a hierarchy with at least two rewards")
+        raise Warning("You should define a hierarchy with at least two rewards")
     
     old_rew = None
     for rew_term in rewards.values():
@@ -300,7 +319,7 @@ def joint_vel(env: ManagerBasedRLEnv, action_name: str, asset_cfg: SceneEntityCf
 
 def action_regularization(env: ManagerBasedRLEnv, action_name:str):
     action = env.action_manager.get_term(action_name).processed_actions
-    return torch.norm(action, dim=1)
+    return 5 + torch.norm(action, dim=1)
 
 class Hierarchy(ManagerTermBase):
 
@@ -308,7 +327,7 @@ class Hierarchy(ManagerTermBase):
         super().__init__(cfg, env)
 
         if len(cfg.params["rewards"]) < 2:
-            raise RuntimeError("You should define a hierarchy with at least two rewards")
+            print("You should define a hierarchy with at least two rewards")
     
         self._rew_tree: dict = cfg.params["rewards"]        
         self.metrics = dict()
@@ -334,9 +353,9 @@ class Hierarchy(ManagerTermBase):
             if total is None:
                 total = level_rew
             else:
-                total = total + total * level_rew
+                total = total + torch.clip(total, min=0.0) * level_rew
 
-        return torch.sigmoid(total)
+        return total
     
     def _compute_node(self, node, prefix=""):
         """
@@ -356,7 +375,7 @@ class Hierarchy(ManagerTermBase):
 
             else:
                 # leaf reward
-                rew = value.weight * value.func(self._env, **value.params)
+                rew = value.weight * value.func(self._env, **value.params) * self._env.step_dt
 
                 # accumulate episodic logging
                 if full_name not in self.metrics:

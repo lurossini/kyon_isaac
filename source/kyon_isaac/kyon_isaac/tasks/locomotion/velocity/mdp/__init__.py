@@ -7,3 +7,4 @@ from .observations import *
 from .event import *
 from .pre_trained_policy_action import *
 from .commands import *
+from .curriculums import *  

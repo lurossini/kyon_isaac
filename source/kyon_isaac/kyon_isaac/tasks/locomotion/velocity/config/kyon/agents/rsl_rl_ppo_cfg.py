@@ -35,6 +35,10 @@ class SpotFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
     )
 
+class SpotRoughPPORunnerCfg(SpotFlatPPORunnerCfg):
+    experiment_name = "kyon_rough"
+
+
 @configclass
 class WheelsFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24

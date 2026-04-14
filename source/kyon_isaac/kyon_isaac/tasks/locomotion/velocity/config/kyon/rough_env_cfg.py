@@ -5,7 +5,7 @@
 
 import isaaclab.sim as sim_utils
 import isaaclab.terrains as terrain_gen
-from isaaclab.envs import ViewerCfg, ManagerBasedRLEnvCfg
+from isaaclab.envs import ViewerCfg
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
@@ -17,64 +17,45 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg, TiledCameraCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
-from isaaclab.assets import Articulation, ArticulationCfg, AssetBaseCfg, RigidObjectCfg
+from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, MySceneCfg
+from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
 
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
-
-import torch
-# from kyon_isaac.sensors import ActionHistorySensorCfg
 
 
 ##
 # Pre-defined configs
 ##
-from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_WHEEL_BODY_CFG_TRAIN, KYON_SIMPLE_WHEEL_BODY_CFG_TRAIN
-from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_WHEEL_BODY_CFG_PLAY, KYON_SIMPLE_WHEEL_BODY_CFG_PLAY
+from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_FULL_BODY_CFG_TRAIN
+from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_FULL_BODY_CFG_PLAY
 
 
-COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
-    size=(16.0, 16.0),
-    border_width=40.0,
-    num_rows=9,
-    num_cols=21,
-    horizontal_scale=0.1,
-    vertical_scale=0.005,
-    slope_threshold=0.75,
-    difficulty_range=(0.0, 1.0),
-    use_cache=False,
-    sub_terrains={
-        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.2),
-        "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-            proportion=0.2, noise_range=(0.02, 0.05), noise_step=0.02, border_width=0.25
-        ),
-    },
-)
-
-FLAT_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
-    size=(16.0, 16.0),
-    border_width=40.0,
-    num_rows=9,
-    num_cols=21,
-    horizontal_scale=0.1,
-    vertical_scale=0.005,
-    slope_threshold=None,
-    difficulty_range=(0.0, 0.0),
-    use_cache=False,
-    sub_terrains={
-        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=1.0),
-    },
-)
+# PYRAMID_STEPS_CFG = terrain_gen.TerrainGeneratorCfg(
+#     size=(8.0, 8.0),
+#     border_width=20.0,
+#     num_rows=9,
+#     num_cols=21,
+#     horizontal_scale=0.1,
+#     vertical_scale=0.005,
+#     slope_threshold=0.75,
+#     difficulty_range=(0.0, 1.0),
+#     use_cache=False,
+#     sub_terrains={
+#         "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.2),
+#         "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+#             proportion=0.2, noise_range=(0.02, 0.05), noise_step=0.02, border_width=0.25
+#         ),
+#     },
+# )
 
 
 @configclass
 class KyonActionsCfg:
     """Action specifications for the MDP."""
     joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.5, use_default_offset=True)
-    joint_vel = mdp.JointVelocityActionCfg(asset_name="robot", joint_names=["wheel_.*"], scale=30.)
 
 @configclass
 class KyonCommandsCfg:
@@ -88,7 +69,7 @@ class KyonCommandsCfg:
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1., 1.), ang_vel_z=(-1.5, 1.5)
+            lin_vel_x=(-1.5, 1.5), lin_vel_y=(-1., 1.), ang_vel_z=(-1.5, 1.5)
         ),
     )
 
@@ -100,7 +81,7 @@ class KyonCommandsPLAYCfg:
         asset_name="robot",
         debug_vis=True,
         ranges=kyon_mdp.VelocityCommandCfg.Ranges(
-            lin_vel_x=(-2.7, 2.7), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.5, 1.5)
+            lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.0, 1.0)
         ),
     )
 
@@ -129,7 +110,7 @@ class KyonObservationsCfg:
             func=kyon_mdp.joint_pos_error, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}, noise=Unoise(n_min=-0.05, n_max=0.05), history_length=3
         )
         joint_vel = ObsTerm(
-            func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*", "wheel_.*"])}, noise=Unoise(n_min=-0.5, n_max=0.5)
+            func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}, noise=Unoise(n_min=-0.5, n_max=0.5)
         )
         actions = ObsTerm(func=mdp.last_action)
 
@@ -153,17 +134,16 @@ class KyonObservationsCfg:
         contact_forces = ObsTerm(
             func=kyon_mdp.contact_forces, 
             params={ 
-                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*")
+                "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")
             }, 
         )
 
         joint_effort = ObsTerm(
-            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*", "wheel_.*"])}
+            func=mdp.joint_effort, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}
         )
         def __post_init__(self):
             self.enable_corruption = False
             self.concatenate_terms = True
-
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
@@ -184,19 +164,6 @@ class KyonEventCfg:
             "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
             "static_friction_range": (0.3, 1.0),
             "dynamic_friction_range": (0.3, 0.8),
-            "restitution_range": (0.0, 0.0),
-            "num_buckets": 64,
-            "make_consistent": True,
-        },
-    )
-
-    physics_material_wheel = EventTerm(
-        func=mdp.randomize_rigid_body_material,
-        mode="startup",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="wheel_.*"),
-            "static_friction_range": (1.5, 2.2),
-            "dynamic_friction_range": (1.5, 2.0),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 64,
             "make_consistent": True,
@@ -269,7 +236,7 @@ class KyonEventCfg:
         params={
             "position_range": (-0.2, 0.2),
             "velocity_range": (-0.1, 0.1),
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*", "wheel_joint_.*"]),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"]),
         },
     )
 
@@ -288,67 +255,100 @@ class KyonEventCfg:
 class KyonRewardsCfg:
     # -- task
     air_time = RewardTermCfg(
-        func=kyon_mdp.air_time_reward_wheels,
+        func=spot_mdp.air_time_reward,
         weight=5.0,
         params={
             "mode_time": 0.3,
             "velocity_threshold": 0.5,
             "asset_cfg": SceneEntityCfg("robot"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
         },
     )
-
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
-        weight=5.0,
+        weight=1.0,
         params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
     )
     base_linear_velocity = RewardTermCfg(
         func=spot_mdp.base_linear_velocity_reward,
-        weight=5.0,
+        weight=1.0,
         params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
+    )
+    # foot_clearance = RewardTermCfg(
+    #     func=spot_mdp.foot_clearance_reward,
+    #     weight=0.5,
+    #     # weight=4.,
+    #     params={
+    #         "std": 0.05,
+    #         "tanh_mult": 2.0,
+    #         "target_height": 0.2,
+    #         "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
+    #     },
+    # )
+    gait = RewardTermCfg(
+        func=kyon_mdp.GaitReward,
+        weight=2.0,
+        params={
+            "std": 0.1,
+            "max_err": 0.2,
+            "velocity_threshold": 0.5,
+            "synced_feet_pair_names": (("contact_1", "contact_4"), ("contact_2", "contact_3")),
+            "asset_cfg": SceneEntityCfg("robot"),
+            "sensor_cfg": SceneEntityCfg("contact_forces"),
+        },
     )
 
     # -- penalties
     action_smoothness = RewardTermCfg(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
-    # air_time_variance = RewardTermCfg(
-    #     func=spot_mdp.air_time_variance_penalty,
-    #     weight=-1.0,
-    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")},
-    # )
+    air_time_variance = RewardTermCfg(
+        func=spot_mdp.air_time_variance_penalty,
+        weight=-1.0,
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")},
+    )
     base_motion = RewardTermCfg(
-        func=spot_mdp.base_motion_penalty, weight=-2.0, params={"asset_cfg": SceneEntityCfg("robot")}
+        func=spot_mdp.base_motion_penalty, weight=-0.4, params={"asset_cfg": SceneEntityCfg("robot")}
     )
-    base_orientation = RewardTermCfg(
-        func=spot_mdp.base_orientation_penalty, weight=-3, params={"asset_cfg": SceneEntityCfg("robot")}
+    # base_orientation = RewardTermCfg(
+        # func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")}
+    # )
+    undesired_contacts = RewardTermCfg(
+        func=mdp.undesired_contacts,
+        weight=-1.0,
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="knee_pitch_.*"), "threshold": 1.0},
     )
-    joint_acc = RewardTermCfg(
-        func=kyon_mdp.joint_acceleration_penalty,
-        weight=-1.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"])},
-    )
-    joint_pos = RewardTermCfg(
-        func=kyon_mdp.joint_position_on_wheels_penalty,
+    foot_slip = RewardTermCfg(
+        func=spot_mdp.foot_slip_penalty,
         weight=-0.5,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"]),
+            "asset_cfg": SceneEntityCfg("robot", body_names="contact_.*"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*"),
+            "threshold": 1.0,
+        },
+    )
+    joint_acc = RewardTermCfg(
+        func=spot_mdp.joint_acceleration_penalty,
+        weight=-1.0e-4,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
+    )
+    joint_pos = RewardTermCfg(
+        func=kyon_mdp.joint_position_penalty,
+        # weight=-0.7,
+        weight=-1.4,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"), # , joint_names="hip_roll_.*"),
             "stand_still_scale": 5.0,
+            "velocity_threshold": 0.5,
         },
     )
     joint_torques = RewardTermCfg(
-        func=kyon_mdp.joint_torques_penalty,
+        func=spot_mdp.joint_torques_penalty,
         weight=-5.0e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"])},
+        params={"asset_cfg": SceneEntityCfg("robot")},
     )
     joint_vel = RewardTermCfg(
-        func=kyon_mdp.joint_velocity_penalty,
+        func=spot_mdp.joint_velocity_penalty,
         weight=-5.0e-2,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"])},
-    )
-    joint_acc_wheel = RewardTermCfg(
-        func=kyon_mdp.joint_acceleration_penalty,
-        weight=-1.0e-5,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["wheel_.*"])},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
     )
 
 @configclass
@@ -368,11 +368,8 @@ class KyonTerminationsCfg:
     )
 
 
-
 @configclass
-class KyonWheelFlatEnvCfg(ManagerBasedRLEnvCfg):
-
-    scene: MySceneCfg = MySceneCfg(num_envs=8192, env_spacing=2.5)
+class KyonRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
 
     # Basic settings
     observations: KyonObservationsCfg = KyonObservationsCfg()
@@ -387,7 +384,12 @@ class KyonWheelFlatEnvCfg(ManagerBasedRLEnvCfg):
     # Viewer
     viewer = ViewerCfg(eye=(-1.5, -4.5, 0.3), origin_type="asset_root", env_index=0, asset_name="robot")
 
+    # Imu
+    
     def __post_init__(self):
+        # post init of parent
+        super().__post_init__()
+
         # general settings
         self.decimation = 10  # 50 Hz
         self.episode_length_s = 20.0
@@ -402,46 +404,40 @@ class KyonWheelFlatEnvCfg(ManagerBasedRLEnvCfg):
         # we tick all the sensors based on the smallest update period (physics update period)
         self.scene.contact_forces.update_period = self.sim.dt
 
+        self.scene.num_envs = 8192
+        
         # switch robot to Kyon
-        self.scene.robot = KYON_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_LOWER_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # imu
         self.scene.imu_sensor = ImuCfg(prim_path="{ENV_REGEX_NS}/Robot/imu_link")
 
         # terrain
-        self.scene.terrain = TerrainImporterCfg(
-            prim_path="/World/ground",
-            terrain_type="generator",
-            terrain_generator=FLAT_ROAD_CFG,
-            max_init_terrain_level=FLAT_ROAD_CFG.num_rows - 1,
-            collision_group=-1,
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                friction_combine_mode="multiply",
-                restitution_combine_mode="multiply",
-                static_friction=1.0,
-                dynamic_friction=1.0,
-            ),
-            visual_material=sim_utils.MdlFileCfg(
-                mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-                project_uvw=True,
-                texture_scale=(0.25, 0.25),
-            ),
-            debug_vis=True,
-        )
+        # self.scene.terrain = TerrainImporterCfg(
+        #     prim_path="/World/ground",
+        #     terrain_type="generator",
+        #     terrain_generator=COBBLESTONE_ROAD_CFG,
+        #     max_init_terrain_level=COBBLESTONE_ROAD_CFG.num_rows - 1,
+        #     collision_group=-1,
+        #     physics_material=sim_utils.RigidBodyMaterialCfg(
+        #         friction_combine_mode="multiply",
+        #         restitution_combine_mode="multiply",
+        #         static_friction=1.0,
+        #         dynamic_friction=1.0,
+        #     ),
+        #     visual_material=sim_utils.MdlFileCfg(
+        #         mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+        #         project_uvw=True,
+        #         texture_scale=(0.25, 0.25),
+        #     ),
+        #     debug_vis=True,
+        # )
 
         # no height scan
         self.scene.height_scanner = None
 
-        self.events.reset_arms = EventTerm(
-            func=kyon_mdp.reset_joint_target_to_default, 
-            mode="startup",
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
-            },
-        )
 
-@configclass
-class KyonWheelFlatEnvCfg_PLAY(KyonWheelFlatEnvCfg):
+class KyonRoughEnvCfg_PLAY(KyonRoughEnvCfg):
 
     commands: KyonCommandsPLAYCfg = KyonCommandsPLAYCfg()
 
@@ -450,14 +446,13 @@ class KyonWheelFlatEnvCfg_PLAY(KyonWheelFlatEnvCfg):
         super().__post_init__()
 
         # make a smaller scene for play
-        self.episode_length_s = 100
-        self.scene.num_envs = 1
+        self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
-
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
 
-        self.scene.robot = KYON_WHEEL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = KYON_LOWER_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
 
         # reduce the number of terrains to save memory
         if self.scene.terrain.terrain_generator is not None:
@@ -468,6 +463,47 @@ class KyonWheelFlatEnvCfg_PLAY(KyonWheelFlatEnvCfg):
         # disable randomization for play
         self.observations.policy.enable_corruption = False
 
+        self.commands = KyonCommandsPLAYCfg()
+
+       
+        # remove random pushing event
+
+class KyonFullRoughEnvCfg(KyonRoughEnvCfg):
+    
+    def __post_init__(self):
+        # post init of parent
+        super().__post_init__()
+        self.scene.robot = KYON_FULL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+        self.events.reset_arms = EventTerm(
+            func=kyon_mdp.reset_joint_target_to_default, 
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_pitch_.*", "wrist_.*", "dagana_.*"])
+            },
+        )
+
+        # self.events.reset_arms = EventTerm(
+        #     func=kyon_mdp.random_joint_position_velocity, 
+        #     mode="interval",
+        #     interval_range_s=(0.5, 0.5),
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"]),
+        #         "pos_lims": (-2, 2),
+        #         "vel_lims": (-10, 10)
+        #     },
+        # )
+
+class KyonFullRoughEnvCfg_PLAY(KyonRoughEnvCfg_PLAY):
+
+    commands: KyonCommandsPLAYCfg = KyonCommandsPLAYCfg()
+
+    def __post_init__(self) -> None:
+        # post init of parent
+        super().__post_init__()
+        self.scene.robot = KYON_FULL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.episode_length_s = 100
+
         self.events.reset_arms = EventTerm(
             func=kyon_mdp.reset_joint_target_to_default, 
             mode="startup",
@@ -475,20 +511,3 @@ class KyonWheelFlatEnvCfg_PLAY(KyonWheelFlatEnvCfg):
                 "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_.*", "elbow_.*", "wrist_.*", "dagana_.*"])
             },
         )
-
-@configclass
-class KyonSimpleWheelFlatEnvCfg(KyonWheelFlatEnvCfg):
-    
-    def __post_init__(self):
-        # post init of parent
-        super().__post_init__()
-        self.scene.robot = KYON_SIMPLE_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-
-@configclass
-class KyonSimpleWheelFlatEnvCfg_PLAY(KyonWheelFlatEnvCfg_PLAY):
-    
-    def __post_init__(self) -> None:
-        # post init of parent
-        super().__post_init__()
-        self.scene.robot = KYON_SIMPLE_WHEEL_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
