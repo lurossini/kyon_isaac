@@ -210,6 +210,7 @@ def goal_reached_command_base_new(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg,
     command_name: str,
+    std: float,
     threshold: float = 0.0,
     success_radius: float = 0.05,
     success_bonus: float = 5.0,
@@ -220,8 +221,10 @@ def goal_reached_command_base_new(
     ref = torch.tensor([threshold, 0.0], device=des_pos_b.device, dtype=des_pos_b.dtype)
     error = torch.norm(des_pos_b - ref.unsqueeze(0), dim=1)
 
-    reward = -error
+    # reward = -error
+    reward = torch.exp(-error**2 / (2 * std**2))
     reward += success_bonus * (error < success_radius).float()
+    
     return reward
 
 def orient_towards_goal(
@@ -408,6 +411,27 @@ def joint_pos_norm(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEnti
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
     return torch.linalg.norm(asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids], dim=1)
+
+def joint_pos_hierarchy(env: ManagerBasedRLEnv, lb_action_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), std: float = 0.5) -> torch.Tensor:
+    """Penalize joint velocities on the articulation using L2 squared kernel.
+
+    NOTE: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their joint velocities contribute to the term.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    action = env.action_manager.get_term(lb_action_name).processed_actions
+
+    base_vel = asset.data.root_lin_vel_b[:, :2]
+    base_vel_norm = torch.linalg.norm(base_vel, dim=1)
+    action_vel_norm = torch.linalg.norm(action, dim=1)
+
+    q_norm = torch.linalg.norm(asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids], dim=1)
+    reward = torch.exp(-q_norm / std)
+
+    return torch.where(
+        torch.logical_or(base_vel_norm > 0.1, action_vel_norm > 0.1),
+        reward, 
+        1.0)
 
 class GaitReward(ManagerTermBase):
     """Gait enforcing reward term for quadrupeds.
