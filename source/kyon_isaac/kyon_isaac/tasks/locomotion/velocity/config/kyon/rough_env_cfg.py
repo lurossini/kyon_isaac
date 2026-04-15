@@ -55,7 +55,12 @@ from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_FULL_BODY
 @configclass
 class KyonActionsCfg:
     """Action specifications for the MDP."""
-    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.5, use_default_offset=True)
+    joint_pos = mdp.JointPositionActionCfg(
+        asset_name="robot",
+        joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], 
+        scale=0.5, 
+        use_default_offset=True
+    )
 
 @configclass
 class KyonCommandsCfg:
@@ -266,12 +271,12 @@ class KyonRewardsCfg:
     )
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
-        weight=1.0,
+        weight=5.0,
         params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
     )
     base_linear_velocity = RewardTermCfg(
         func=spot_mdp.base_linear_velocity_reward,
-        weight=1.0,
+        weight=5.0,
         params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
     )
     # foot_clearance = RewardTermCfg(
@@ -332,8 +337,7 @@ class KyonRewardsCfg:
     )
     joint_pos = RewardTermCfg(
         func=kyon_mdp.joint_position_penalty,
-        # weight=-0.7,
-        weight=-1.4,
+        weight=-0.7,
         params={
             "asset_cfg": SceneEntityCfg("robot"), # , joint_names="hip_roll_.*"),
             "stand_still_scale": 5.0,
@@ -382,7 +386,7 @@ class KyonRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     events: KyonEventCfg = KyonEventCfg()
 
     # Viewer
-    viewer = ViewerCfg(eye=(-1.5, -4.5, 0.3), origin_type="asset_root", env_index=0, asset_name="robot")
+    viewer = ViewerCfg(eye=(0.0, -4.5, 0.3), origin_type="asset_root", env_index=0, asset_name="robot")
 
     # Imu
     
@@ -448,25 +452,32 @@ class KyonRoughEnvCfg_PLAY(KyonRoughEnvCfg):
         # make a smaller scene for play
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
+        self.episode_length_s = 1000.0
         # spawn the robot randomly in the grid (instead of their terrain levels)
-        self.scene.terrain.max_init_terrain_level = None
+        self.scene.terrain.max_init_terrain_level = 0
 
         self.scene.robot = KYON_LOWER_BODY_CFG_PLAY.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
         # reduce the number of terrains to save memory
         if self.scene.terrain.terrain_generator is not None:
-            self.scene.terrain.terrain_generator.num_rows = 5
+            self.scene.terrain.terrain_generator.num_rows = 10
             self.scene.terrain.terrain_generator.num_cols = 5
-            self.scene.terrain.terrain_generator.curriculum = False
+            # self.scene.terrain.terrain_generator.curriculum = False
 
         # disable randomization for play
         self.observations.policy.enable_corruption = False
 
         self.commands = KyonCommandsPLAYCfg()
 
-       
         # remove random pushing event
+        self.curriculum = None
+        self.terminations.terrain_out_of_bounds = None
+        self.terminations.body_contact = DoneTerm(
+            func=mdp.illegal_contact,
+            params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis"]), "threshold": 1.0},
+        )
+        self.events.push_robot = None
 
 class KyonFullRoughEnvCfg(KyonRoughEnvCfg):
     
