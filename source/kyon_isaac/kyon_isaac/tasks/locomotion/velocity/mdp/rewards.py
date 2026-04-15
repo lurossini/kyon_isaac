@@ -579,4 +579,42 @@ def position_command_error_gauss(
     body_idx = asset.find_bodies(asset_cfg.body_names)[0][0]
     curr_pos_w = asset.data.body_pos_w[:, body_idx]  # type: ignore
     distance = torch.norm(curr_pos_w - des_pos_w, dim=1)
-    return torch.exp(-distance / std)
+    g = torch.sigmoid(-(distance - 0.25) / slope)
+    return g * torch.exp(-distance / std)
+
+def arm_nominal_until_close(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+    q_nom: torch.Tensor | None = None,
+    release_dist: float = 0.25,
+    slope: float = 0.05,
+    std: float = 0.5,
+    body_name: str = "wrist_yaw_1_link",
+) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+
+    des_pos_b = command[:, :3]
+    des_pos_w, _ = math.combine_frame_transforms(
+        asset.data.root_pos_w, asset.data.root_quat_w, des_pos_b
+    )
+
+    body_idx = asset.find_bodies([body_name])[0][0]
+    curr_pos_w = asset.data.body_pos_w[:, body_idx]
+    dist = torch.norm(curr_pos_w - des_pos_w, dim=1)
+
+    q = asset.data.joint_pos[:, asset_cfg.joint_ids]
+    if q_nom is None:
+        q_nominal = asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    else:
+        q_nominal = q_nom.unsqueeze(0)
+
+    q_err = torch.linalg.norm(q - q_nominal, dim=1)
+    r_nom = torch.exp(-(q_err**2) / (std**2))
+
+    # 0 when far, 1 when close
+    g = torch.sigmoid(-(dist - release_dist) / slope)
+
+    # strong nominal reward when far, fades when close
+    return (1.0 - g) * r_nom

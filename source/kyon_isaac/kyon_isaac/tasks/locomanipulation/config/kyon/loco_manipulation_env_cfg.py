@@ -134,63 +134,63 @@ class ActionsCfg:
 class RewardsCfg:
 
     # Hierarchical reward
-    hierarchy = RewTerm(
-        func=kyon_mdp.Hierarchy,
-        weight=1.0,
-        params={
-            "rewards": {
-                # "goal_reached": RewTerm(
-                #     func=kyon_mdp.goal_reached_command_base_new,
-                #     weight=1.0,
-                #     params={
-                #         "asset_cfg": SceneEntityCfg("robot"),
-                #         "command_name": "left_ee_pose",
-                #         "threshold": 0.5,
-                #         "std": 0.5,
-                #     }
-                # ),
-                "reg_manipulation": {
-                    "left_arm_joint_pos": RewTerm(
-                        func=kyon_mdp.joint_pos_hierarchy,
-                        weight=1.0,
-                        params={
-                            "lb_action_name": "pre_trained_policy_action",
-                            "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"]),
-                            "std": 0.5
-                        }
-                    )
-                },
-                "left_ee_pos_tracking": {
-                    "left_ee_pos_tracking": RewTerm(
-                        func=kyon_mdp.position_command_error_gauss,
-                        weight=1.0,
-                        params={
-                            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-                            "std": 0.5,
-                            "command_name": "left_ee_pose",
-                        },
-                    ),
-                    "left_ee_pos_tracking_fine_grained": RewTerm(
-                        func=kyon_mdp.position_command_error_gauss,
-                        weight=5.0,
-                        params={
-                            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-                            "std": 0.1,
-                            "command_name": "left_ee_pose",
-                        },
-                    )
-                },
-                # "left_end_effector_orientation_tracking": RewTerm(
-                #     func=kyon_mdp.orientation_command_error,
-                #     weight=-1,
-                #     params={
-                #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"), 
-                #         "command_name": "left_ee_pose"
-                #     },
-                # ) 
-            }
-        }
-    )
+    # hierarchy = RewTerm(
+    #     func=kyon_mdp.Hierarchy,
+    #     weight=1.0,
+    #     params={
+    #         "rewards": {
+    #             # "goal_reached": RewTerm(
+    #             #     func=kyon_mdp.goal_reached_command_base_new,
+    #             #     weight=1.0,
+    #             #     params={
+    #             #         "asset_cfg": SceneEntityCfg("robot"),
+    #             #         "command_name": "left_ee_pose",
+    #             #         "threshold": 0.5,
+    #             #         "std": 0.5,
+    #             #     }
+    #             # ),
+    #             "reg_manipulation": {
+    #                 "left_arm_joint_pos": RewTerm(
+    #                     func=kyon_mdp.joint_pos_hierarchy,
+    #                     weight=1.0,
+    #                     params={
+    #                         "lb_action_name": "pre_trained_policy_action",
+    #                         "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"]),
+    #                         "std": 0.5
+    #                     }
+    #                 )
+    #             },
+    #             "left_ee_pos_tracking": {
+    #                 "left_ee_pos_tracking": RewTerm(
+    #                     func=kyon_mdp.position_command_error_gauss,
+    #                     weight=1.0,
+    #                     params={
+    #                         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+    #                         "std": 0.5,
+    #                         "command_name": "left_ee_pose",
+    #                     },
+    #                 ),
+    #                 "left_ee_pos_tracking_fine_grained": RewTerm(
+    #                     func=kyon_mdp.position_command_error_gauss,
+    #                     weight=5.0,
+    #                     params={
+    #                         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+    #                         "std": 0.1,
+    #                         "command_name": "left_ee_pose",
+    #                     },
+    #                 )
+    #             },
+    #             # "left_end_effector_orientation_tracking": RewTerm(
+    #             #     func=kyon_mdp.orientation_command_error,
+    #             #     weight=-1,
+    #             #     params={
+    #             #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"), 
+    #             #         "command_name": "left_ee_pose"
+    #             #     },
+    #             # ) 
+    #         }
+    #     }
+    # )
 
     # goal_reached = RewTerm(
     #     func=kyon_mdp.goal_reached_command_base_new,
@@ -202,6 +202,18 @@ class RewardsCfg:
     #                 }
     # )
 
+    reg_manipulation = RewTerm(
+        func=kyon_mdp.arm_nominal_until_close,
+        weight=1.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"]),
+            "command_name": "left_ee_pose",
+            "release_dist": 0.25,
+            "slope": 0.05,
+            "std": 0.5
+        }
+    )
+
     lb_action_regularization = RewTerm(
         func=kyon_mdp.action_regularization,
         weight=-0.1,
@@ -211,24 +223,24 @@ class RewardsCfg:
     )
 
 
-    # left_ee_pos_tracking = RewTerm(
-    #     func=kyon_mdp.position_command_error_gauss,
-    #     weight=1.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-    #         "std": 0.5,
-    #         "command_name": "left_ee_pose",
-    #     },
-    # )
-    # left_ee_pos_tracking_fine_grained = RewTerm(
-    #     func=kyon_mdp.position_command_error_gauss,
-    #     weight=5.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
-    #         "std": 0.1,
-    #         "command_name": "left_ee_pose",
-    #     },
-    # )
+    left_ee_pos_tracking = RewTerm(
+        func=kyon_mdp.position_command_error_gauss,
+        weight=1.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+            "std": 0.5,
+            "command_name": "left_ee_pose",
+        },
+    )
+    left_ee_pos_tracking_fine_grained = RewTerm(
+        func=kyon_mdp.position_command_error_gauss,
+        weight=5.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+            "std": 0.1,
+            "command_name": "left_ee_pose",
+        },
+    )
 
     
     action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
