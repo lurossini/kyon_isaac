@@ -21,8 +21,9 @@ from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
+# from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
 
+from kyon_isaac.tasks.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
 
 
@@ -33,23 +34,34 @@ from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_FULL_BO
 from kyon_isaac.assets.kyon_play import KYON_LOWER_BODY_CFG_PLAY, KYON_FULL_BODY_CFG_PLAY
 
 
-# PYRAMID_STEPS_CFG = terrain_gen.TerrainGeneratorCfg(
-#     size=(8.0, 8.0),
-#     border_width=20.0,
-#     num_rows=9,
-#     num_cols=21,
-#     horizontal_scale=0.1,
-#     vertical_scale=0.005,
-#     slope_threshold=0.75,
-#     difficulty_range=(0.0, 1.0),
-#     use_cache=False,
-#     sub_terrains={
-#         "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.2),
-#         "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-#             proportion=0.2, noise_range=(0.02, 0.05), noise_step=0.02, border_width=0.25
-#         ),
-#     },
-# )
+PYRAMID_STEPS_CFG = terrain_gen.TerrainGeneratorCfg(
+    size=(8.0, 8.0),
+    border_width=20.0,
+    num_rows=10,
+    num_cols=20,
+    horizontal_scale=0.1,
+    vertical_scale=0.005,
+    slope_threshold=0.75,
+    use_cache=False,
+    sub_terrains={
+        "pyramid_stairs": terrain_gen.MeshPyramidStairsTerrainCfg(
+            proportion=0.2,
+            step_height_range=(0.05, 0.23),
+            step_width=0.3,
+            platform_width=3.0,
+            border_width=1.0,
+            holes=False,
+        ),
+        "pyramid_stairs_inv": terrain_gen.MeshInvertedPyramidStairsTerrainCfg(
+            proportion=0.2,
+            step_height_range=(0.05, 0.23),
+            step_width=0.3,
+            platform_width=3.0,
+            border_width=1.0,
+            holes=False,
+        ),
+    }
+)
 
 
 @configclass
@@ -118,6 +130,13 @@ class KyonObservationsCfg:
             func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*"])}, noise=Unoise(n_min=-0.5, n_max=0.5)
         )
         actions = ObsTerm(func=mdp.last_action)
+
+        height_scan = ObsTerm(
+            func=mdp.height_scan,
+            params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+            noise=Unoise(n_min=-0.1, n_max=0.1),
+            clip=(-1.0, 1.0),
+        )
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -337,7 +356,7 @@ class KyonRewardsCfg:
     )
     joint_pos = RewardTermCfg(
         func=kyon_mdp.joint_position_penalty,
-        weight=-0.7,
+        weight=-1.0,
         params={
             "asset_cfg": SceneEntityCfg("robot"), # , joint_names="hip_roll_.*"),
             "stand_still_scale": 5.0,
@@ -417,28 +436,10 @@ class KyonRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.imu_sensor = ImuCfg(prim_path="{ENV_REGEX_NS}/Robot/imu_link")
 
         # terrain
-        # self.scene.terrain = TerrainImporterCfg(
-        #     prim_path="/World/ground",
-        #     terrain_type="generator",
-        #     terrain_generator=COBBLESTONE_ROAD_CFG,
-        #     max_init_terrain_level=COBBLESTONE_ROAD_CFG.num_rows - 1,
-        #     collision_group=-1,
-        #     physics_material=sim_utils.RigidBodyMaterialCfg(
-        #         friction_combine_mode="multiply",
-        #         restitution_combine_mode="multiply",
-        #         static_friction=1.0,
-        #         dynamic_friction=1.0,
-        #     ),
-        #     visual_material=sim_utils.MdlFileCfg(
-        #         mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-        #         project_uvw=True,
-        #         texture_scale=(0.25, 0.25),
-        #     ),
-        #     debug_vis=True,
-        # )
+        self.scene.terrain.terrain_generator = PYRAMID_STEPS_CFG 
 
         # no height scan
-        self.scene.height_scanner = None
+        # self.scene.height_scanner = None
 
 
 class KyonRoughEnvCfg_PLAY(KyonRoughEnvCfg):

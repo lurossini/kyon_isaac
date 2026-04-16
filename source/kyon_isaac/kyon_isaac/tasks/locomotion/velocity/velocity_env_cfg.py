@@ -28,6 +28,8 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 
+import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
+
 
 ##
 # Pre-defined configs
@@ -283,7 +285,9 @@ class TerminationsCfg:
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
-    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+    # terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+    terrain_levels = CurrTerm(func=kyon_mdp.terrain_levels_episode_length,
+                              params={"threshold_low": 0.4, "threshold_high": 0.8})
 
 
 ##
