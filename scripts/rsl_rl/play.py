@@ -218,7 +218,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                         ref = [-rx_msg.axes[1], -rx_msg.axes[0], -rx_msg.axes[3]]
                     except zmq.Again:
                         break     
-                env.unwrapped.command_manager.get_term('base_velocity').set_command(torch.Tensor(ref).unsqueeze(0).repeat(env.unwrapped.num_envs, 1).float())
+                env.unwrapped.command_manager.get_term('base_velocity').set_command(torch.tensor(ref, device=args_cli.device).unsqueeze(0).repeat(env.unwrapped.num_envs, 1).float())
                 
             # env stepping
             obs, _, _, _ = env.step(actions)
