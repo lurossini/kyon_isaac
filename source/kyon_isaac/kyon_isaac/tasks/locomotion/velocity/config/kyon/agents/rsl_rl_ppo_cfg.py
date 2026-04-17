@@ -5,7 +5,7 @@ from dataclasses import MISSING
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
 
 @configclass
-class SpotFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class KyonFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 8000
     save_interval = 50
@@ -36,7 +36,7 @@ class SpotFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     )
 
 @configclass
-class SpotRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class KyonRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 12000
     save_interval = 50

@@ -169,9 +169,28 @@ class KyonObservationsCfg:
             self.enable_corruption = False
             self.concatenate_terms = True
 
+    @configclass
+    class TeacherCfg(PolicyCfg):
+        """Observations for teacher group."""
+
+        def __post_init__(self):
+            self.enable_corruption = False
+            self.concatenate_terms = True
+
+    @configclass
+    class StudentCfg(PolicyCfg):
+        """Observations for student group."""
+        height_scan = None
+
+        def __post_init__(self):
+            self.enable_corruption = True
+            self.concatenate_terms = True
+
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
+    student: StudentCfg = StudentCfg()
+    teacher: TeacherCfg = TeacherCfg()
 
 
 @configclass
