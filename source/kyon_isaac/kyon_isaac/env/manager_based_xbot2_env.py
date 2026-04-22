@@ -1,17 +1,28 @@
 from isaaclab.envs import ManagerBasedEnv, ManagerBasedEnvCfg
 from isaaclab.managers import ObservationManager, ActionManager, CommandManager
 from isaaclab.sensors.contact_sensor import ContactSensorCfg, ContactSensorData
+from isaaclab.sensors.ray_caster import RayCasterCfg, RayCasterData
 from isaaclab.sensors.imu import ImuCfg, ImuData
 from isaaclab.scene.interactive_scene_cfg import InteractiveSceneCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.utils import configclass
 import torch
+import threading
 from tensordict import TensorDict
 from typing import Sequence
 import isaaclab.utils.string as string_utils
 from .xbot2_zmq_robot_interface import ZmqRobot
 import numpy as np
 import time
+
+try:
+    import rclpy
+    from rclpy.node import Node
+    from rclpy.executors import SingleThreadedExecutor
+    from visualization_msgs.msg import MarkerArray
+    _ROS2_AVAILABLE = True
+except ImportError:
+    _ROS2_AVAILABLE = False
 
 class XBot2RobotData:
     def __init__(self, num_joint: int):
@@ -167,6 +178,82 @@ class XBot2ContactSensor:
     
     def update(self):
         pass
+
+class XBot2HeightScanner:
+
+    def __init__(self, cfg: RayCasterCfg):
+        self.cfg = cfg
+        self.data = RayCasterData()
+        self.height_scan_z = torch.empty((0,), dtype=torch.float32)
+        self._ros2_lock = threading.Lock()
+        self._ros2_thread = None
+        self._ros2_running = False
+        self._ros2_node = None
+        self._ros2_executor = None
+        self._init_ros2_height_scan_subscriber()
+
+    def _init_ros2_height_scan_subscriber(self):
+        if not _ROS2_AVAILABLE:
+            print("ROS2 not available: skipping height_scan_markers subscriber")
+            return
+
+        try:
+            if not rclpy.ok():
+                rclpy.init(args=None)
+
+            self._ros2_node = Node("xbot2_height_scanner")
+            self._ros2_node.create_subscription(
+                MarkerArray,
+                "height_scan_markers",
+                self._height_scan_markers_callback,
+                10,
+            )
+
+            self._ros2_executor = SingleThreadedExecutor()
+            self._ros2_executor.add_node(self._ros2_node)
+            self._ros2_running = True
+            self._ros2_thread = threading.Thread(target=self._spin_ros2, daemon=True)
+            self._ros2_thread.start()
+            print("XBot2HeightScanner subscribed to height_scan_markers")
+        except Exception as exc:
+            print(f"Failed to initialize height scan subscriber: {exc}")
+
+    def _spin_ros2(self):
+        while self._ros2_running and self._ros2_executor is not None:
+            try:
+                self._ros2_executor.spin_once(timeout_sec=0.1)
+            except Exception:
+                break
+
+    def _height_scan_markers_callback(self, msg: "MarkerArray"):
+        z_values = [marker.pose.position.z for marker in msg.markers]
+        z_tensor = torch.tensor(z_values, dtype=torch.float32)
+        with self._ros2_lock:
+            self.height_scan_z = z_tensor
+
+    def get_height_scan_z(self) -> torch.Tensor:
+        with self._ros2_lock:
+            return self.height_scan_z
+
+    def update(self):
+        self.data.pos_w = torch.zeros((1, 3))  # Placeholder for actual sensor position in world frame
+        self.data.quat_w = torch.tensor([[1, 0, 0, 0]], dtype=torch.float32)  # Placeholder for actual sensor orientation in world frame
+        self.data.ray_hits_w = self.get_height_scan_z()
+
+    def close(self):
+        self._ros2_running = False
+        if self._ros2_thread is not None and self._ros2_thread.is_alive():
+            self._ros2_thread.join(timeout=1.0)
+        if self._ros2_executor is not None and self._ros2_node is not None:
+            self._ros2_executor.remove_node(self._ros2_node)
+        if self._ros2_node is not None:
+            self._ros2_node.destroy_node()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
     
     
 class XBot2Scene:
@@ -192,6 +279,9 @@ class XBot2Scene:
                 self.sensors[asset_name] = self._assets[asset_name]
             elif isinstance(asset_cfg, ContactSensorCfg):
                 self._assets[asset_name] = XBot2ContactSensor(asset_cfg)
+                self.sensors[asset_name] = self._assets[asset_name]
+            elif isinstance(asset_cfg, RayCasterCfg):
+                self._assets[asset_name] = XBot2HeightScanner(asset_cfg)
                 self.sensors[asset_name] = self._assets[asset_name]
                 
     def update(self):
