@@ -15,14 +15,14 @@ from .xbot2_zmq_robot_interface import ZmqRobot
 import numpy as np
 import time
 
-try:
-    import rclpy
-    from rclpy.node import Node
-    from rclpy.executors import SingleThreadedExecutor
-    from visualization_msgs.msg import MarkerArray
-    _ROS2_AVAILABLE = True
-except ImportError:
-    _ROS2_AVAILABLE = False
+# try:
+import rclpy
+from rclpy.node import Node
+from rclpy.executors import SingleThreadedExecutor
+from visualization_msgs.msg import MarkerArray
+_ROS2_AVAILABLE = True
+# except ImportError:
+    # _ROS2_AVAILABLE = False
 
 class XBot2RobotData:
     def __init__(self, num_joint: int):
@@ -184,8 +184,11 @@ class XBot2HeightScanner:
     def __init__(self, cfg: RayCasterCfg):
         self.cfg = cfg
         self.data = RayCasterData()
-        self.height_scan_z = torch.empty((0,), dtype=torch.float32)
+        self.data.pos_w = torch.zeros((1, 3))
+        self.data.ray_hits_w = torch.zeros(1, 187, 3)
+        self.height_scan_points = torch.empty((0, 3), dtype=torch.float32)
         self._ros2_lock = threading.Lock()
+        self._first_scan_event = threading.Event()
         self._ros2_thread = None
         self._ros2_running = False
         self._ros2_node = None
@@ -194,7 +197,8 @@ class XBot2HeightScanner:
 
     def _init_ros2_height_scan_subscriber(self):
         if not _ROS2_AVAILABLE:
-            print("ROS2 not available: skipping height_scan_markers subscriber")
+            raise RuntimeError("ROS2 not available: skipping height_scan_markers subscriber")
+            self._first_scan_event.set()
             return
 
         try:
@@ -217,6 +221,7 @@ class XBot2HeightScanner:
             print("XBot2HeightScanner subscribed to height_scan_markers")
         except Exception as exc:
             print(f"Failed to initialize height scan subscriber: {exc}")
+            self._first_scan_event.set()
 
     def _spin_ros2(self):
         while self._ros2_running and self._ros2_executor is not None:
@@ -226,19 +231,27 @@ class XBot2HeightScanner:
                 break
 
     def _height_scan_markers_callback(self, msg: "MarkerArray"):
-        z_values = [marker.pose.position.z for marker in msg.markers]
-        z_tensor = torch.tensor(z_values, dtype=torch.float32)
+        xyz_values = [(marker.pose.position.x, marker.pose.position.y, marker.pose.position.z) for marker in msg.markers]
+        if xyz_values:
+            xyz_tensor = torch.tensor(xyz_values, dtype=torch.float32)
+        else:
+            xyz_tensor = torch.empty((0, 3), dtype=torch.float32)
         with self._ros2_lock:
-            self.height_scan_z = z_tensor
+            self.height_scan_points = xyz_tensor
+        self._first_scan_event.set()
 
-    def get_height_scan_z(self) -> torch.Tensor:
+    def get_height_scan_points(self) -> torch.Tensor:
         with self._ros2_lock:
-            return self.height_scan_z
+            return self.height_scan_points
 
     def update(self):
-        self.data.pos_w = torch.zeros((1, 3))  # Placeholder for actual sensor position in world frame
-        self.data.quat_w = torch.tensor([[1, 0, 0, 0]], dtype=torch.float32)  # Placeholder for actual sensor orientation in world frame
-        self.data.ray_hits_w = self.get_height_scan_z()
+        self._first_scan_event.wait()
+
+        height_scan_points = self.get_height_scan_points()
+        self.data.ray_hits_w.zero_()
+        n = min(height_scan_points.shape[0], self.data.ray_hits_w.shape[1])
+        if n > 0:
+            self.data.ray_hits_w[0, :n, :] = height_scan_points[:n, :]
 
     def close(self):
         self._ros2_running = False
@@ -345,7 +358,7 @@ class ManagerBasedXBot2Env:
         # update scene
         self.scene.update()
 
-        obs =  self.get_observations()
+        obs = self.get_observations()
 
         # obsvec = obs['policy'].flatten()
         # print('---')

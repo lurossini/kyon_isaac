@@ -57,6 +57,9 @@ sys.argv = [sys.argv[0]] + hydra_args
 args_cli.headless = True
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
+from isaacsim.core.utils.extensions import enable_extension
+enable_extension("isaacsim.ros2.bridge")
+simulation_app.update()
 
 
 """Rest everything follows."""
@@ -88,9 +91,6 @@ from isaaclab_tasks.utils.hydra import hydra_task_config
 import kyon_isaac.tasks  # noqa: F401
 from kyon_isaac.env.manager_based_xbot2_env import ManagerBasedXBot2Env
 
-from isaacsim.core.utils.extensions import enable_extension
-
-enable_extension("isaacsim.ros2.bridge")
 
 if args_cli.interactive and args_cli.keyboard:
     raise RuntimeError("both joystick and keyboard enabled, please set one to False")
