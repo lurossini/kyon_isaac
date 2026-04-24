@@ -134,7 +134,6 @@ class ZmqRobot:
     
     def getImuOrientation(self):
         w_T_imu = R.from_quat([self.imu_msg.orientation_x, self.imu_msg.orientation_y, self.imu_msg.orientation_z, self.imu_msg.orientation_w])
-        print(w_T_imu.as_quat())
         b_T_imu = R.from_euler('xyz', [np.pi, 0, 0])
         w_T_imu = b_T_imu * w_T_imu
         return R.as_matrix(w_T_imu)
