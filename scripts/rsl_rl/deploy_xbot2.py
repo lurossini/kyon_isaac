@@ -39,6 +39,12 @@ parser.add_argument("--real-time", action="store_true", default=False, help="Run
 parser.add_argument("--interactive", action="store_true", default=False, help="Enable joystick to send commands")
 parser.add_argument("--keyboard", action="store_true", default=False, help="Send command references through keyboard")
 parser.add_argument("--gui", action="store_true", default=False, help="Enable communication with xbot2-gui")
+parser.add_argument(
+    "--enable-ros-node",
+    action="store_true",
+    default=False,
+    help="Enable ROS2 node creation and pace loop using ROS simulation time.",
+)
 
 ## append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
@@ -209,6 +215,20 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     dt = env.unwrapped.step_dt
 
+    rclpy_mod = None
+    sim_time_node = None
+    dt_ns = int(dt * 1e9)
+    last_sim_time_ns = None
+    if args_cli.enable_ros_node:
+        import rclpy as rclpy_mod
+        from rclpy.parameter import Parameter
+
+        if not rclpy_mod.ok():
+            rclpy_mod.init(args=None)
+        sim_time_node = rclpy_mod.create_node("deploy_xbot2_sim_time")
+        sim_time_node.set_parameters([Parameter("use_sim_time", value=True)])
+        print("[INFO] Using ROS sim time pacing (use_sim_time=True).")
+
     # reset environment
     obs = env.get_observations()
 
@@ -246,6 +266,31 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         mean_time_inference[i] = end_time - start_time
         i += 1
 
+        if sim_time_node is not None and rclpy_mod is not None:
+            rclpy_mod.spin_once(sim_time_node, timeout_sec=0.0)
+            now_ns = sim_time_node.get_clock().now().nanoseconds
+            if last_sim_time_ns is None:
+                last_sim_time_ns = now_ns
+            target_ns = last_sim_time_ns + dt_ns
+
+            # Wait until ROS simulation time advances by one env dt.
+            wait_start = time.time()
+            ros_clock_timed_out = False
+            while sim_time_node.get_clock().now().nanoseconds < target_ns and simulation_app.is_running():
+                rclpy_mod.spin_once(sim_time_node, timeout_sec=0.01)
+                # Avoid deadlock if /clock is not being published.
+                if time.time() - wait_start > 1.0:
+                    ros_clock_timed_out = True
+                    break
+
+            now_ns = sim_time_node.get_clock().now().nanoseconds
+            if now_ns >= target_ns:
+                last_sim_time_ns = target_ns
+            else:
+                last_sim_time_ns = now_ns
+            if not ros_clock_timed_out:
+                continue
+
         # time delay for real-time evaluation
         sleep_time = dt - (time.time() - start_time)
         if args_cli.real_time and sleep_time > 0:
@@ -253,6 +298,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # close the simulator
     env.close()
+    if sim_time_node is not None:
+        sim_time_node.destroy_node()
+    if rclpy_mod is not None and rclpy_mod.ok():
+        rclpy_mod.shutdown()
 
 
 if __name__ == "__main__":
