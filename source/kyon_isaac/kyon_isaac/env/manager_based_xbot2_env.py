@@ -226,7 +226,7 @@ class XBot2HeightScanner:
     def _spin_ros2(self):
         while self._ros2_running and self._ros2_executor is not None:
             try:
-                self._ros2_executor.spin_once(timeout_sec=0.1)
+                self._ros2_executor.spin_once(timeout_sec=0.0)
             except Exception:
                 break
 
@@ -238,20 +238,28 @@ class XBot2HeightScanner:
             xyz_tensor = torch.empty((0, 3), dtype=torch.float32)
         with self._ros2_lock:
             self.height_scan_points = xyz_tensor
+            # print([point[0:2] for point in self.height_scan_points])
         self._first_scan_event.set()
 
     def get_height_scan_points(self) -> torch.Tensor:
         with self._ros2_lock:
             return self.height_scan_points
 
+    def wait_for_first_scan(self, timeout: float | None = None) -> bool:
+        return self._first_scan_event.wait(timeout=timeout)
+
     def update(self):
-        self._first_scan_event.wait()
+        if not self._first_scan_event.is_set():
+            return
 
         height_scan_points = self.get_height_scan_points()
         self.data.ray_hits_w.zero_()
         n = min(height_scan_points.shape[0], self.data.ray_hits_w.shape[1])
         if n > 0:
             self.data.ray_hits_w[0, :n, :] = height_scan_points[:n, :]
+            ray_z = height_scan_points[:n, 2]
+            # print(ray_z)
+        
 
     def close(self):
         self._ros2_running = False
@@ -326,12 +334,22 @@ class ManagerBasedXBot2Env:
         self.step_dt = cfg.sim.dt * cfg.decimation
         self.sim = SimMockup()  # Placeholder for actual simulation initialization
         self.scene = XBot2Scene(cfg.scene)  # Placeholder for actual scene initialization
+        self._wait_for_first_height_scan(timeout_sec=2.0)
         self.action_manager = ActionManager(cfg=cfg.actions, env=self)
         self.command_manager = CommandManager(cfg=cfg.commands, env=self) 
         self.observation_manager = ObservationManager(cfg=cfg.observations, env=self)
         self.unwrapped = self  # Placeholder for actual unwrapping logic
         self.num_actions = self.action_manager.total_action_dim
         self.t_last = time.time()
+
+    def _wait_for_first_height_scan(self, timeout_sec: float = 2.0):
+        for sensor in self.scene.sensors.values():
+            if isinstance(sensor, XBot2HeightScanner):
+                if sensor.wait_for_first_scan(timeout=timeout_sec):
+                    print(f"[INFO] First height scan received (timeout={timeout_sec:.1f}s).")
+                else:
+                    print(f"[WARN] No height scan received within {timeout_sec:.1f}s; starting without scan.")
+                break
         
     def get_observations(self) -> TensorDict:
         """Returns the current observations of the environment."""

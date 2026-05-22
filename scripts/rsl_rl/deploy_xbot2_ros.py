@@ -39,7 +39,7 @@ parser.add_argument("--real-time", action="store_true", default=False, help="Run
 parser.add_argument("--interactive", action="store_true", default=False, help="Enable joystick to send commands")
 parser.add_argument("--keyboard", action="store_true", default=False, help="Send command references through keyboard")
 parser.add_argument("--gui", action="store_true", default=False, help="Enable communication with xbot2-gui")
-
+parser.add_argument("--use_sim_time", action="store_true", default=False, help="Use ROS simulation time.")
 
 ## append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
@@ -58,8 +58,11 @@ sys.argv = [sys.argv[0]] + hydra_args
 args_cli.headless = True
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
+
+# enable ROS2 bridge extension for ROS communication
 from isaacsim.core.utils.extensions import enable_extension
 enable_extension("isaacsim.ros2.bridge")
+
 simulation_app.update()
 
 
@@ -108,11 +111,6 @@ if args_cli.interactive:
     socket.bind(f"tcp://{REMOTE_IP}:5050")
     socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all topics
 
-# keyboard
-if args_cli.keyboard:
-    from keyboard_input import KeyboardIO
-    kio = KeyboardIO()
-
 if args_cli.gui:
     import zmq
 
@@ -123,6 +121,147 @@ if args_cli.gui:
     print(f'connected to tcp://{REMOTE_IP}:5051')
     socket.setsockopt_string(zmq.SUBSCRIBE, "")  # Subscribe to all topics
 
+# Create ROS2 node for pacing the loop with simulation time
+import rclpy
+from rclpy.node import Node
+from rclpy.parameter import Parameter
+class SimTimeNode(Node):
+    def __init__(self):
+        super().__init__('sim_time_node', parameter_overrides=[Parameter('use_sim_time', Parameter.Type.BOOL, args_cli.use_sim_time)])
+
+    def init(self):
+        """Play with RSL-RL agent."""
+        @hydra_task_config(args_cli.task, args_cli.agent)
+        def _init(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
+            # grab task name for checkpoint path
+            task_name = args_cli.task.split(":")[-1]
+            train_task_name = task_name.replace("-Play", "")
+
+            # override configurations with non-hydra CLI arguments
+            agent_cfg: RslRlBaseRunnerCfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
+            env_cfg.scene.num_envs = 1
+
+            # set the environment seed
+            # note: certain randomizations occur in the environment initialization so we set the seed here
+            env_cfg.seed = agent_cfg.seed
+            env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
+
+            # specify directory for logging experiments
+            log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
+            log_root_path = os.path.abspath(log_root_path)
+            print(f"[INFO] Loading experiment from directory: {log_root_path}")
+            if args_cli.use_pretrained_checkpoint:
+                resume_path = get_published_pretrained_checkpoint("rsl_rl", train_task_name)
+                if not resume_path:
+                    print("[INFO] Unfortunately a pre-trained checkpoint is currently unavailable for this task.")
+                    return
+            elif args_cli.checkpoint:
+                resume_path = retrieve_file_path(args_cli.checkpoint)
+            else:
+                resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+
+            log_dir = os.path.dirname(resume_path)
+
+            # create isaac environment
+            self.env = ManagerBasedXBot2Env(cfg=env_cfg)
+
+            # convert to single-agent instance if required by the RL algorithm
+            if isinstance(self.env.unwrapped, DirectMARLEnv):
+                self.env = multi_agent_to_single_agent(self.env)
+
+            # wrap for video recording
+            if args_cli.video:
+                raise NotImplementedError("Video recording not implemented yet (?!?!)")
+
+            # wrap around environment for rsl-rl
+            # self.env = RslRlVecEnvWrapper(self.env, clip_actions=agent_cfg.clip_actions)
+
+            print(f"[INFO]: Loading model checkpoint from: {resume_path}")
+            # load previously trained model
+            if agent_cfg.class_name == "OnPolicyRunner":
+                runner = OnPolicyRunner(self.env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
+            elif agent_cfg.class_name == "DistillationRunner":
+                runner = DistillationRunner(self.env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
+            else:
+                raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
+            runner.load(resume_path)
+
+            # obtain the trained policy for inference
+            self.policy = runner.get_inference_policy(device=self.env.unwrapped.device)
+
+            # extract the neural network module
+            # we do this in a try-except to maintain backwards compatibility.
+            try:
+                # version 2.3 onwards
+                policy_nn = runner.alg.policy
+            except AttributeError:
+                # version 2.2 and below
+                policy_nn = runner.alg.actor_critic
+
+            # extract the normalizer
+            if hasattr(policy_nn, "actor_obs_normalizer"):
+                normalizer = policy_nn.actor_obs_normalizer
+            elif hasattr(policy_nn, "student_obs_normalizer"):
+                normalizer = policy_nn.student_obs_normalizer
+            else:
+                normalizer = None
+
+            # export policy to onnx/jit
+            export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
+            export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt")
+            export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
+
+            self.dt = self.env.unwrapped.step_dt
+            self.timer = self.create_timer(self.dt, self.timer_callback)
+
+            # reset environment
+            self.obs = self.env.get_observations()
+
+            # mean_time_inference = np.zeros(100)
+            # i = 0
+            if args_cli.interactive:
+                self.rx_msg = joy_msg_pb2.JoyMsg()
+
+            self.ref = [0., 0., 0.]
+
+        _init()
+
+    def destroy_node(self):
+        if hasattr(self, 'env'):
+            self.env.close()
+        super().destroy_node()
+
+    def timer_callback(self):   
+        start_time = time.time()
+        # run everything in inference mode
+        with torch.inference_mode():
+            # agent stepping
+            actions = self.policy(self.obs)
+            
+            if args_cli.interactive:
+                while True:
+                    try:
+                        msg = socket.recv(flags=zmq.NOBLOCK)
+                        self.rx_msg.ParseFromString(msg)
+                        self.ref = [-self.rx_msg.axes[1], -self.rx_msg.axes[0], -self.rx_msg.axes[3]]
+                    except zmq.Again:
+                        break     
+                self.env.unwrapped.command_manager.get_term('base_velocity').set_command(torch.Tensor(self.ref).unsqueeze(0).repeat(self.env.unwrapped.num_envs, 1).float())
+
+            # env stepping
+            self.obs = self.env.step(actions)
+
+        end_time = time.time()
+        # if i % 100 == 0 and i != 0:
+        #     i = 0
+        #     print(f'mean inference time: {np.mean(mean_time_inference)}')
+        # mean_time_inference[i] = end_time - start_time
+        # i += 1
+
+        # time delay for real-time evaluation
+        # sleep_time = dt - (time.time() - start_time)
+        # if args_cli.real_time and sleep_time > 0:
+            # time.sleep(sleep_time)
 
 # PLACEHOLDER: Extension template (do not remove this comment)
 
@@ -253,13 +392,16 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             time.sleep(sleep_time)
 
     # close the simulator
-    env.close()
-    if sim_time_node is not None:
-        sim_time_node.destroy_node()
+    env.close()     
 
 if __name__ == "__main__":
-    # run the main function
-    main()
+    rclpy.init(args=None)
+    node = SimTimeNode()
+    node.init()
+    rclpy.spin(node)
+
     # close sim app
     simulation_app.close()
+    node.destroy_node()
+    rclpy.shutdown()
     pygame.quit()
