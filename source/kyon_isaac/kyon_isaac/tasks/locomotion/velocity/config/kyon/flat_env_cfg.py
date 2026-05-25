@@ -81,7 +81,7 @@ class KyonCommandsPLAYCfg:
         asset_name="robot",
         debug_vis=True,
         ranges=kyon_mdp.VelocityCommandCfg.Ranges(
-            lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.0, 1.0)
+            lin_vel_x=(-1.0, 1.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.0, 1.0)
         ),
     )
 
