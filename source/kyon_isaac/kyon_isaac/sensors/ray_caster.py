@@ -44,8 +44,6 @@ class KyonRayCaster(RayCaster):
         super()._update_buffers_impl(env_ids)
         env_ids_flat = env_ids.flatten()
 
-        print(self._timestamp)
-
         # Apply occlusion mask to ray hits
         self._is_occlusion_outdated |= (
             (self._timestamp > self.interval_range_s[0])
