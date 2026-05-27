@@ -194,12 +194,6 @@ class XBot2HeightScanner:
         self._zmq_running = False
         self._zmq_socket = None
         self._init_zmq_height_scan_subscriber(zmq_addr)
-        # self._ros2_lock = threading.Lock()
-        # self._ros2_thread = None
-        # self._ros2_running = False
-        # self._ros2_node = None
-        # self._ros2_executor = None
-        # self._init_ros2_height_scan_subscriber()
 
     def _init_zmq_height_scan_subscriber(self, zmq_addr: str):
         try:
@@ -228,7 +222,6 @@ class XBot2HeightScanner:
                 if not self._zmq_socket.poll(timeout=1000):
                     print("[XBot2HeightScanner] poll timeout, waiting for messages...")
                     continue
-                print("got new height scan message")
                 msg_bytes = self._zmq_socket.recv()
                 scan = height_scan_msg_pb2.HeightScanMsg()
                 scan.ParseFromString(msg_bytes)
@@ -243,49 +236,6 @@ class XBot2HeightScanner:
             except Exception as e:
                 print(f"[XBot2HeightScanner] ZMQ spin error: {e}")
                 break
-
-    # def _init_ros2_height_scan_subscriber(self):
-    #     if not _ROS2_AVAILABLE:
-    #         raise RuntimeError("ROS2 not available: skipping height_scan_markers subscriber")
-    #         self._first_scan_event.set()
-    #         return
-    #     try:
-    #         if not rclpy.ok():
-    #             rclpy.init(args=None)
-    #         self._ros2_node = Node("xbot2_height_scanner")
-    #         self._ros2_node.create_subscription(
-    #             MarkerArray,
-    #             "height_scan_markers",
-    #             self._height_scan_markers_callback,
-    #             10,
-    #         )
-    #         self._ros2_executor = SingleThreadedExecutor()
-    #         self._ros2_executor.add_node(self._ros2_node)
-    #         self._ros2_running = True
-    #         self._ros2_thread = threading.Thread(target=self._spin_ros2, daemon=True)
-    #         self._ros2_thread.start()
-    #         print("XBot2HeightScanner subscribed to height_scan_markers")
-    #     except Exception as exc:
-    #         print(f"Failed to initialize height scan subscriber: {exc}")
-    #         self._first_scan_event.set()
-
-    # def _spin_ros2(self):
-    #     while self._ros2_running and self._ros2_executor is not None:
-    #         try:
-    #             self._ros2_executor.spin_once(timeout_sec=0.0)
-    #         except Exception:
-    #             break
-
-    # def _height_scan_markers_callback(self, msg: "MarkerArray"):
-    #     xyz_values = [(marker.pose.position.x, marker.pose.position.y, marker.pose.position.z) for marker in msg.markers]
-    #     if xyz_values:
-    #         xyz_tensor = torch.tensor(xyz_values, dtype=torch.float32)
-    #     else:
-    #         xyz_tensor = torch.empty((0, 3), dtype=torch.float32)
-    #     with self._ros2_lock:
-    #         self.height_scan_points = xyz_tensor
-    #         # print([point[0:2] for point in self.height_scan_points])
-    #     self._first_scan_event.set()
 
     def get_height_scan_points(self) -> torch.Tensor:
         with self._zmq_lock:
@@ -303,8 +253,6 @@ class XBot2HeightScanner:
         n = min(height_scan_points.shape[0], self.data.ray_hits_w.shape[1])
         if n > 0:
             self.data.ray_hits_w[0, :n, :] = height_scan_points[:n, :]
-            ray_z = height_scan_points[:n, 2]
-            # print(ray_z)
 
     def close(self):
         self._zmq_running = False
@@ -313,10 +261,6 @@ class XBot2HeightScanner:
         if self._zmq_socket is not None:
             self._zmq_socket.close()
             self._zmq_socket = None
-        # if self._ros2_executor is not None and self._ros2_node is not None:
-        #     self._ros2_executor.remove_node(self._ros2_node)
-        # if self._ros2_node is not None:
-        #     self._ros2_node.destroy_node()
 
     def __del__(self):
         try:
