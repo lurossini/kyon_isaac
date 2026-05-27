@@ -119,6 +119,7 @@ def height_scan(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg, offset: float 
     # height scan: height = sensor_height - hit_point_z - offset
     
     ret = sensor.data.pos_w[:, 2].unsqueeze(1) - sensor.data.ray_hits_w[..., 2] - offset
-    ret[sensor.occlusion_mask] = 0.0
+    if hasattr(sensor, "occlusion_mask"):
+        ret[sensor.occlusion_mask] = 0.0
 
     return ret
