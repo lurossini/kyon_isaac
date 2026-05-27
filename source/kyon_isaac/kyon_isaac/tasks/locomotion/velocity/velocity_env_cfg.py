@@ -76,7 +76,7 @@ class MySceneCfg(InteractiveSceneCfg):
         pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
         debug_vis=True,
         mesh_prim_paths=["/World/ground"],
-        update_period=0.1,
+        update_period=0.05,
         update_occlusion_period=0.1,
         failure_rate=0.05,
         interval_range_s=(5.0, 15.0)

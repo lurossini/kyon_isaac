@@ -28,12 +28,12 @@ class KyonRayCaster(RayCaster):
         super().reset(env_ids)
         
         # Reset occlusion mask to no occlusion for the reset environments
-        self._is_occlusion_outdated[env_ids] = True
+        self._is_occlusion_outdated[env_ids] = False
         self.occlusion_mask[env_ids] = False
 
     def _initialize_impl(self):
         super()._initialize_impl()
-        self._is_occlusion_outdated= torch.ones(self._num_envs, dtype=torch.bool, device=self._device)
+        self._is_occlusion_outdated= torch.zeros(self._num_envs, dtype=torch.bool, device=self._device)
 
     def _initialize_rays_impl(self):
         super()._initialize_rays_impl()
@@ -44,12 +44,18 @@ class KyonRayCaster(RayCaster):
         env_ids_flat = env_ids.flatten()
 
         # Apply occlusion mask to ray hits
-        self._is_occlusion_outdated |= self._timestamp > self.interval_range_s[0] and self._timestamp < self.interval_range_s[1] and self._timestamp - self._timestamp_last_update + 1e-6 >= self.cfg.update_occlusion_period
+        self._is_occlusion_outdated |= (
+            (self._timestamp > self.interval_range_s[0])
+            & (self._timestamp < self.interval_range_s[1])
+            & (self._timestamp - self._timestamp_last_update + 1e-6 >= self.cfg.update_occlusion_period)
+        )
         outdated_occlusion_env_ids = self._is_occlusion_outdated.nonzero().squeeze(-1)
         if len(outdated_occlusion_env_ids) > 0:
             r = torch.empty(len(env_ids_flat), self.num_rays, device=self.device)
             self.occlusion_mask[env_ids_flat] = r.uniform_(0, 1) < self.failure_rate
             self._is_occlusion_outdated[outdated_occlusion_env_ids] = False
+        else:
+            self.occlusion_mask[env_ids_flat] = False
         self._data.ray_hits_w[self.occlusion_mask] = 0.0
 
         # --- debug ---
