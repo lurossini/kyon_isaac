@@ -22,7 +22,7 @@ import isaaclab.utils.math as math
 
 import numpy as np
 
-# from kyon_isaac.sensors import ActionHistorySensor
+from kyon_isaac.sensors.ray_caster import KyonRayCaster
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -107,3 +107,18 @@ def get_relative_pose(env: ManagerBasedRLEnv,
         body_pose_w[:, 3:],
     )
     return body_pose_b
+
+
+def height_scan(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg, offset: float = 0.5) -> torch.Tensor:
+    """Height scan from the given sensor w.r.t. the sensor's frame.
+
+    The provided offset (Defaults to 0.5) is subtracted from the returned values.
+    """
+    # extract the used quantities (to enable type-hinting)
+    sensor: KyonRayCaster = env.scene.sensors[sensor_cfg.name]
+    # height scan: height = sensor_height - hit_point_z - offset
+    
+    ret = sensor.data.pos_w[:, 2].unsqueeze(1) - sensor.data.ray_hits_w[..., 2] - offset
+    ret[sensor.occlusion_mask] = 0.0
+
+    return ret
