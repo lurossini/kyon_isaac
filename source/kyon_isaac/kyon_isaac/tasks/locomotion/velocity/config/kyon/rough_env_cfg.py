@@ -132,7 +132,7 @@ class KyonObservationsCfg:
         actions = ObsTerm(func=mdp.last_action)
 
         height_scan = ObsTerm(
-            func=mdp.height_scan,
+            func=kyon_mdp.height_scan,
             params={"sensor_cfg": SceneEntityCfg("height_scanner")},
             noise=Unoise(n_min=-0.1, n_max=0.1),
             clip=(-1.0, 1.0),

@@ -29,7 +29,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
-
+from kyon_isaac.sensors.ray_caster import KyonRayCasterCfg
 
 ##
 # Pre-defined configs
@@ -69,14 +69,17 @@ class MySceneCfg(InteractiveSceneCfg):
     # robots
     robot: ArticulationCfg = MISSING
     # sensors
-    height_scanner = RayCasterCfg(
+    height_scanner = KyonRayCasterCfg(
         prim_path="{ENV_REGEX_NS}/Robot/pelvis",
-        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
+        offset=KyonRayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 3.0)),
         ray_alignment="yaw",
         pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
         debug_vis=True,
         mesh_prim_paths=["/World/ground"],
         update_period=0.1,
+        update_occlusion_period=0.1,
+        failure_rate=0.05,
+        interval_range_s=(5.0, 15.0)
     )
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
     
@@ -324,8 +327,8 @@ class LocomotionVelocityRoughEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.gpu_max_rigid_patch_count = 10 * 2**15
         # update sensor update periods
         # we tick all the sensors based on the smallest update period (physics update period)
-        if self.scene.height_scanner is not None:
-            self.scene.height_scanner.update_period = self.decimation * self.sim.dt
+        # if self.scene.height_scanner is not None:
+            # self.scene.height_scanner.update_period = self.decimation * self.sim.dt
         if self.scene.contact_forces is not None:
             self.scene.contact_forces.update_period = self.sim.dt
 
