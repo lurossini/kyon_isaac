@@ -353,7 +353,6 @@ class ManagerBasedXBot2Env:
     
     def step(self, action: torch.Tensor):
 
-        time.sleep(max(0, self.step_dt - (time.time() - self.t_last)))
         self.t_last = time.time()
 
         self.command_manager.compute(self.step_dt)
@@ -364,6 +363,9 @@ class ManagerBasedXBot2Env:
         
         # write data to robot
         self.scene.write_data_to_robot()
+
+        # sleep to maintain real-time step duration
+        time.sleep(max(0, self.step_dt - (time.time() - self.t_last)))
 
         # update scene
         self.scene.update()
