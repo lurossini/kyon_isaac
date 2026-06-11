@@ -40,37 +40,37 @@ from kyon_isaac.tasks.locomotion.velocity.mdp.rewards import goal_reached
 import torch
 from collections.abc import Sequence
 from isaaclab.managers.reward_manager import RewardManager
-def reset(self, env_ids: Sequence[int] | None = None) -> dict[str, torch.Tensor]:
-    """Returns the episodic sum of individual reward terms.
+# def reset(self, env_ids: Sequence[int] | None = None) -> dict[str, torch.Tensor]:
+#     """Returns the episodic sum of individual reward terms.
 
-    Args:
-        env_ids: The environment ids for which the episodic sum of
-            individual reward terms is to be returned. Defaults to all the environment ids.
+#     Args:
+#         env_ids: The environment ids for which the episodic sum of
+#             individual reward terms is to be returned. Defaults to all the environment ids.
 
-    Returns:
-        Dictionary of episodic sum of individual reward terms.
-    """
-    # resolve environment ids
-    if env_ids is None:
-        env_ids = slice(None)   
-    # store information
-    extras = {}
-    for key in self._episode_sums.keys():
-        # store information
-        # r_1 + r_2 + ... + r_n
-        episodic_sum_avg = torch.mean(self._episode_sums[key][env_ids])
-        extras["Episode_Reward/" + key] = episodic_sum_avg / self._env.max_episode_length_s
-        # reset episodic sum
-        self._episode_sums[key][env_ids] = 0.0
-    # reset all the reward terms
-    for term_cfg in self._class_term_cfgs:
-        term_extras = term_cfg.func.reset(env_ids=env_ids)
-        if term_extras is not None:
-            extras.update(term_extras)
-    # return logged information
-    return extras
+#     Returns:
+#         Dictionary of episodic sum of individual reward terms.
+#     """
+#     # resolve environment ids
+#     if env_ids is None:
+#         env_ids = slice(None)   
+#     # store information
+#     extras = {}
+#     for key in self._episode_sums.keys():
+#         # store information
+#         # r_1 + r_2 + ... + r_n
+#         episodic_sum_avg = torch.mean(self._episode_sums[key][env_ids])
+#         extras["Episode_Reward/" + key] = episodic_sum_avg / self._env.max_episode_length_s
+#         # reset episodic sum
+#         self._episode_sums[key][env_ids] = 0.0
+#     # reset all the reward terms
+#     for term_cfg in self._class_term_cfgs:
+#         term_extras = term_cfg.func.reset(env_ids=env_ids)
+#         if term_extras is not None:
+#             extras.update(term_extras)
+#     # return logged information
+#     return extras
 
-RewardManager.reset = reset
+# RewardManager.reset = reset
 
 @configclass
 class CommandsCfg:
@@ -81,8 +81,8 @@ class CommandsCfg:
         resampling_time_range=(8.0, 8.0),
         debug_vis=True,
         ranges=kyon_mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(-3, 3),
-            pos_y=(-3, 3),
+            pos_x=(-7, 7),
+            pos_y=(-7, 7),
             pos_z=(0.3, 0.7),
             roll=(0.0, 0.0),
             pitch=(3.14, 3.14),
@@ -108,7 +108,7 @@ class ActionsCfg:
     pre_trained_policy_action: kyon_mdp.PreTrainedPolicyActionCfg = kyon_mdp.PreTrainedPolicyActionCfg(
         asset_name="robot",
         policy_path=f"{KYON_ISAAC_BASE_DIR}/../../../scripts/rsl_rl/logs/rsl_rl/kyon_flat/legged_locomotion/exported/policy.pt",
-        low_level_decimation=1,
+        low_level_decimation=KYON_FULL_BODY_ENV_CFG.decimation,
         low_level_actions=KYON_FULL_BODY_ENV_CFG.actions.joint_pos,
         low_level_observations=KYON_FULL_BODY_ENV_CFG.observations.policy,
     )
@@ -208,7 +208,7 @@ class RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"]),
             "command_name": "left_ee_pose",
-            "release_dist": 0.25,
+            "release_dist": 1.0,
             "slope": 0.05,
             "std": 0.5
         }
@@ -216,16 +216,22 @@ class RewardsCfg:
 
     lb_action_regularization = RewTerm(
         func=kyon_mdp.action_regularization,
-        weight=-0.1,
+        weight=0.1,
         params={
-            "action_name": "pre_trained_policy_action"
+            "asset_cfg": SceneEntityCfg("robot"),
+            "action_name": "pre_trained_policy_action",
+            "command_name": "left_ee_pose",
+            "body_name": "wrist_yaw_1_link",
+            "std": 3.0,
+            "release_dist": 1.0,
+            "slope": 0.2,
         }
     )
 
 
     left_ee_pos_tracking = RewTerm(
         func=kyon_mdp.position_command_error_gauss,
-        weight=1.0,
+        weight=0.5,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
             "std": 0.5,
@@ -234,13 +240,21 @@ class RewardsCfg:
     )
     left_ee_pos_tracking_fine_grained = RewTerm(
         func=kyon_mdp.position_command_error_gauss,
-        weight=5.0,
+        weight=1.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
             "std": 0.1,
             "command_name": "left_ee_pose",
         },
     )
+    # left_end_effector_orientation_tracking = RewTerm(
+    #     func=kyon_mdp.orientation_command_error,
+    #     weight=-1,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"), 
+    #         "command_name": "left_ee_pose"
+    #     },
+    # ) 
 
     
     action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.0)

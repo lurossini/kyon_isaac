@@ -320,9 +320,30 @@ def joint_vel(env: ManagerBasedRLEnv, action_name: str, asset_cfg: SceneEntityCf
     action = env.action_manager.get_term(action_name).processed_actions
     return torch.where(torch.norm(action, dim=-1) < 0.1, torch.norm(asset.data.joint_vel[:, asset_cfg.joint_ids], dim=-1), 0)
 
-def action_regularization(env: ManagerBasedRLEnv, action_name:str):
+def action_regularization(
+    env: ManagerBasedRLEnv,
+    action_name: str,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+    body_name: str,
+    std: float = 1.0,
+    release_dist: float = 0.25,
+    slope: float = 0.05,
+) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+
+    des_pos_b = command[:, :3]
+    des_pos_w, _ = math.combine_frame_transforms(asset.data.root_pos_w, asset.data.root_quat_w, des_pos_b)
+    body_idx = asset.find_bodies([body_name])[0][0]
+    curr_pos_w = asset.data.body_pos_w[:, body_idx]
+    dist = torch.norm(curr_pos_w - des_pos_w, dim=1)
+
+    # 1 when close, 0 when far
+    g = torch.sigmoid(-(dist - release_dist) / slope)
+
     action = env.action_manager.get_term(action_name).processed_actions
-    return 5 + torch.norm(action, dim=1)
+    return g * torch.exp(-torch.norm(action, dim=1) ** 2 / (2 * std**2))
 
 class Hierarchy(ManagerTermBase):
 
@@ -565,10 +586,9 @@ def position_command_error_tanh(
 def position_command_error_gauss(
     env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg
 ) -> torch.Tensor:
-    """Reward tracking of the position using the tanh kernel.
+    """Reward tracking of the position using a Gaussian kernel.
 
-    The function computes the position error between the desired position (from the command) and the
-    current position of the asset's body (in world frame) and maps it with a tanh kernel.
+    Returns 1 when at the goal (distance=0) and decays smoothly to 0 as distance increases.
     """
     # extract the asset (to enable type hinting)
     asset: RigidObject = env.scene[asset_cfg.name]
@@ -579,8 +599,7 @@ def position_command_error_gauss(
     body_idx = asset.find_bodies(asset_cfg.body_names)[0][0]
     curr_pos_w = asset.data.body_pos_w[:, body_idx]  # type: ignore
     distance = torch.norm(curr_pos_w - des_pos_w, dim=1)
-    g = torch.sigmoid(-(distance - 0.25) / slope)
-    return g * torch.exp(-distance / std)
+    return torch.exp(-distance**2 / (2 * std**2))
 
 def arm_nominal_until_close(
     env: ManagerBasedRLEnv,
@@ -602,7 +621,7 @@ def arm_nominal_until_close(
 
     body_idx = asset.find_bodies([body_name])[0][0]
     curr_pos_w = asset.data.body_pos_w[:, body_idx]
-    dist = torch.norm(curr_pos_w - des_pos_w, dim=1)
+    dist = torch.norm(curr_pos_w[:, :2] - des_pos_w[:, :2], dim=1)
 
     q = asset.data.joint_pos[:, asset_cfg.joint_ids]
     if q_nom is None:
@@ -616,5 +635,5 @@ def arm_nominal_until_close(
     # 0 when far, 1 when close
     g = torch.sigmoid(-(dist - release_dist) / slope)
 
-    # strong nominal reward when far, fades when close
-    return (1.0 - g) * r_nom
+    # nominal reward when far, always 1 when close
+    return g + (1.0 - g) * r_nom
