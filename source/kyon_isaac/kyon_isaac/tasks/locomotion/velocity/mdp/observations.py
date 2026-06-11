@@ -109,7 +109,7 @@ def get_relative_pose(env: ManagerBasedRLEnv,
     return body_pose_b
 
 
-def height_scan(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg, offset: float = 0.5) -> torch.Tensor:
+def height_scan(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, offset: float = 0.5) -> torch.Tensor:
     """Height scan from the given sensor w.r.t. the sensor's frame.
 
     The provided offset (Defaults to 0.5) is subtracted from the returned values.
@@ -120,6 +120,6 @@ def height_scan(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg, offset: float 
     
     ret = sensor.data.pos_w[:, 2].unsqueeze(1) - sensor.data.ray_hits_w[..., 2] - offset
     if hasattr(sensor, "occlusion_mask"):
-        ret[sensor.occlusion_mask] = 0.0
+        ret[sensor.occlusion_mask] = 0.0 - offset
 
     return ret
