@@ -9,6 +9,7 @@
 
 import argparse
 import sys
+import yaml
 
 from isaaclab.app import AppLauncher
 
@@ -79,6 +80,7 @@ from isaaclab.envs import (
     DirectMARLEnvCfg,
     DirectRLEnvCfg,
     ManagerBasedRLEnvCfg,
+    ManagerBasedRLEnv,
     multi_agent_to_single_agent,
 )
 from isaaclab.utils.assets import retrieve_file_path
@@ -141,6 +143,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)    
 
+    
+
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
@@ -190,10 +194,34 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     else:
         normalizer = None
 
+    # extract relevant information from the environment for policy export
+    mb_rl_env: ManagerBasedRLEnv = env.unwrapped
+    robot = mb_rl_env.scene.articulations['robot']
+    joint_stiffness = [-1] * len(robot.joint_names)
+    joint_damping = [-1] * len(robot.joint_names)
+    for act in env_cfg.scene.robot.actuators.values():
+        _, joints = robot.find_joints(act.joint_names_expr, robot.joint_names, preserve_order=True)
+        for j in joints:
+            idx = robot.joint_names.index(j)
+            joint_stiffness[idx] = act.stiffness
+            joint_damping[idx] = act.damping
+    deploy_metadata = {
+        'default_joint_pos':robot.data.default_joint_pos[0, :].tolist(),
+        'joint_names': robot.joint_names,
+        'ctrl_dt': mb_rl_env.step_dt,
+        'observations': mb_rl_env.observation_manager.serialize(),
+        'actions': mb_rl_env.action_manager.serialize(),
+        'commands': env_cfg.commands.to_dict(),
+        'joint_stiffness': joint_stiffness,
+        'joint_damping': joint_damping,
+    }
+
     # export policy to onnx/jit
     export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
     export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt")
     export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
+    with open(os.path.join(export_model_dir, "deploy_metadata.yaml"), "w") as f:
+        yaml.dump(deploy_metadata, f, indent=2, sort_keys=False)
 
     dt = env.unwrapped.step_dt
 
