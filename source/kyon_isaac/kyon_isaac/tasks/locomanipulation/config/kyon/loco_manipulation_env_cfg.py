@@ -5,6 +5,7 @@ from isaaclab.devices.device_base import DevicesCfg
 from isaaclab.devices.openxr import OpenXRDeviceCfg, XrCfg
 
 from isaaclab.envs import ManagerBasedRLEnvCfg
+from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
@@ -27,9 +28,10 @@ import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_
 import isaaclab_tasks.manager_based.navigation.mdp as navigation_mdp
 from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg, TiledCameraCfg
 
-from kyon_isaac.tasks.locomotion.velocity.config.kyon.flat_env_cfg import KyonFullFlatEnvCfg, KyonTerminationsCfg
+from kyon_isaac.tasks.locomotion.velocity.config.kyon.flat_env_cfg import KyonFullFlatEnvCfg, KyonTerminationsCfg, KyonEventCfg
 
 from kyon_isaac.assets.kyon_train import KYON_LOWER_BODY_CFG_TRAIN, KYON_FULL_BODY_CFG_TRAIN
+import kyon_isaac.tasks.locomanipulation.mdp.curriculums as kyon_mdp_locomanipulation
 
 import kyon_isaac
 from pathlib import Path
@@ -81,8 +83,8 @@ class CommandsCfg:
         resampling_time_range=(8.0, 8.0),
         debug_vis=True,
         ranges=kyon_mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(-7, 7),
-            pos_y=(-7, 7),
+            pos_x=(-1, 1),
+            pos_y=(-1, 1),
             pos_z=(0.3, 0.7),
             roll=(0.0, 0.0),
             pitch=(3.14, 3.14),
@@ -204,13 +206,13 @@ class RewardsCfg:
 
     reg_manipulation = RewTerm(
         func=kyon_mdp.arm_nominal_until_close,
-        weight=1.0,
+        weight=2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_1", "shoulder_pitch_1", "elbow_pitch_1", "wrist_pitch_1", "wrist_yaw_1"]),
             "command_name": "left_ee_pose",
-            "release_dist": 1.0,
-            "slope": 0.05,
-            "std": 0.5
+            "release_dist": 0.5,
+            "slope": 0.15,
+            "std": 1.0
         }
     )
 
@@ -223,7 +225,7 @@ class RewardsCfg:
             "command_name": "left_ee_pose",
             "body_name": "wrist_yaw_1_link",
             "std": 3.0,
-            "release_dist": 1.0,
+            "release_dist": 0.7,
             "slope": 0.2,
         }
     )
@@ -231,7 +233,7 @@ class RewardsCfg:
 
     left_ee_pos_tracking = RewTerm(
         func=kyon_mdp.position_command_error_gauss,
-        weight=0.5,
+        weight=1.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
             "std": 0.5,
@@ -240,13 +242,22 @@ class RewardsCfg:
     )
     left_ee_pos_tracking_fine_grained = RewTerm(
         func=kyon_mdp.position_command_error_gauss,
-        weight=1.0,
+        weight=3.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
             "std": 0.1,
             "command_name": "left_ee_pose",
         },
     )
+
+    # left_ee_pos_distance_penalty = RewTerm(
+    #     func=kyon_mdp.position_command_error,
+    #     weight=-0.1,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link"),
+    #         "command_name": "left_ee_pose",
+    #     },
+    # )
     # left_end_effector_orientation_tracking = RewTerm(
     #     func=kyon_mdp.orientation_command_error,
     #     weight=-1,
@@ -355,6 +366,16 @@ class ObservationWithRGBDCfg(ObservationCfg):
     # observation groups
     rgbd: RGBDCameraCfg = RGBDCameraCfg()
 
+@configclass
+class CurriculumCfg:
+    goal_distance = CurrTerm(
+        func=kyon_mdp_locomanipulation.goal_distance_range,
+        params={
+            "command": "left_ee_pose",
+            "asset_cfg": SceneEntityCfg("robot", body_names="wrist_yaw_1_link")
+        }   
+    )
+
 
 @configclass
 class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
@@ -367,7 +388,7 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
     rewards: RewardsCfg = RewardsCfg()
     terminations: KyonTerminationsCfg = KyonTerminationsCfg()
 
-    curriculum = None
+    curriculum: CurriculumCfg = CurriculumCfg()
 
     def __post_init__(self):
         super().__post_init__()
@@ -388,6 +409,16 @@ class LocomanipulationKyonSceneCfg(KyonFullFlatEnvCfg):
             mode="reset",
             params={
                 "asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_yaw_.*", "shoulder_pitch_.*", "elbow_pitch_.*", "wrist_pitch_.*", "wrist_yaw_.*", "dagana_.*"])
+            },
+        )
+
+        self.events.reset_robot_joints = EventTerm(
+            func=kyon_mdp.reset_joints_around_default,
+            mode="reset",
+            params={
+                "position_range": (-0.2, 0.2),
+                "velocity_range": (-0.1, 0.1),
+                "asset_cfg": SceneEntityCfg("robot"),
             },
         )
 

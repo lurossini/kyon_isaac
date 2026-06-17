@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import torch
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from dataclasses import MISSING
 
 from isaaclab.markers.config import BLUE_ARROW_X_MARKER_CFG, FRAME_MARKER_CFG, GREEN_ARROW_X_MARKER_CFG
@@ -53,6 +53,15 @@ class UniformPoseCommand(CommandTerm):
         self.pose_command_w = torch.zeros(self.num_envs, 7, device=self.device)
         self.pose_command_w[:, 3] = 1.0
         self.pose_command_b = torch.zeros_like(self.pose_command_w)
+        # per-environment sampling ranges: each entry stores [min, max]
+        self._ranges = {
+            "pos_x": torch.tensor(cfg.ranges.pos_x, device=self.device, dtype=torch.float32).repeat(self.num_envs, 1),
+            "pos_y": torch.tensor(cfg.ranges.pos_y, device=self.device, dtype=torch.float32).repeat(self.num_envs, 1),
+            "pos_z": torch.tensor(cfg.ranges.pos_z, device=self.device, dtype=torch.float32).repeat(self.num_envs, 1),
+            "roll": torch.tensor(cfg.ranges.roll, device=self.device, dtype=torch.float32).repeat(self.num_envs, 1),
+            "pitch": torch.tensor(cfg.ranges.pitch, device=self.device, dtype=torch.float32).repeat(self.num_envs, 1),
+            "yaw": torch.tensor(cfg.ranges.yaw, device=self.device, dtype=torch.float32).repeat(self.num_envs, 1),
+        }
         # -- metrics
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["orientation_error"] = torch.zeros(self.num_envs, device=self.device)
@@ -91,20 +100,27 @@ class UniformPoseCommand(CommandTerm):
         self.metrics["orientation_error"] = torch.norm(rot_error, dim=-1)
 
     def _resample_command(self, env_ids: Sequence[int]):
+        env_ids_t = torch.as_tensor(env_ids, device=self.device, dtype=torch.long)
+        if env_ids_t.numel() == 0:
+            return
+
+        def _sample(name: str) -> torch.Tensor:
+            bounds = self._ranges[name][env_ids_t]
+            return bounds[:, 0] + torch.rand(env_ids_t.shape[0], device=self.device) * (bounds[:, 1] - bounds[:, 0])
+
         # sample new pose targets in world frame
         # -- position
-        r = torch.empty(len(env_ids), device=self.device)
-        self.pose_command_w[env_ids, 0] = self._env.scene.env_origins[env_ids, 0] + r.uniform_(*self.cfg.ranges.pos_x)
-        self.pose_command_w[env_ids, 1] = self._env.scene.env_origins[env_ids, 1] + r.uniform_(*self.cfg.ranges.pos_y)
-        self.pose_command_w[env_ids, 2] = self._env.scene.env_origins[env_ids, 2] + r.uniform_(*self.cfg.ranges.pos_z)
+        self.pose_command_w[env_ids_t, 0] = self._env.scene.env_origins[env_ids_t, 0] + _sample("pos_x")
+        self.pose_command_w[env_ids_t, 1] = self._env.scene.env_origins[env_ids_t, 1] + _sample("pos_y")
+        self.pose_command_w[env_ids_t, 2] = self._env.scene.env_origins[env_ids_t, 2] + _sample("pos_z")
         # -- orientation
-        euler_angles = torch.zeros_like(self.pose_command_w[env_ids, :3])
-        euler_angles[:, 0].uniform_(*self.cfg.ranges.roll)
-        euler_angles[:, 1].uniform_(*self.cfg.ranges.pitch)
-        euler_angles[:, 2].uniform_(*self.cfg.ranges.yaw)
+        euler_angles = torch.zeros_like(self.pose_command_w[env_ids_t, :3])
+        euler_angles[:, 0] = _sample("roll")
+        euler_angles[:, 1] = _sample("pitch")
+        euler_angles[:, 2] = _sample("yaw")
         quat = quat_from_euler_xyz(euler_angles[:, 0], euler_angles[:, 1], euler_angles[:, 2])
         # make sure the quaternion has real part as positive
-        self.pose_command_w[env_ids, 3:] = quat_unique(quat) if self.cfg.make_quat_unique else quat
+        self.pose_command_w[env_ids_t, 3:] = quat_unique(quat) if self.cfg.make_quat_unique else quat
 
     def _update_command(self):
         # transform sampled command from world to base frame
@@ -144,6 +160,42 @@ class UniformPoseCommand(CommandTerm):
         # -- current body pose
         body_link_pose_w = self.robot.data.body_link_pose_w[:, self.body_idx]
         self.current_pose_visualizer.visualize(body_link_pose_w[:, :3], body_link_pose_w[:, 3:7])
+
+    '''
+    Extra custom function
+    '''
+    def get_ranges(self, env_ids: Sequence[int]) -> dict[str, torch.Tensor]:
+        """Return per-environment ranges for the requested environments."""
+        env_ids_t = torch.as_tensor(env_ids, device=self.device, dtype=torch.long)
+        return {name: values[env_ids_t].clone() for name, values in self._ranges.items()}
+
+    def update_ranges(self, env_ids: Sequence[int], new_ranges: UniformPoseCommandCfg.Ranges | dict[str, Any]):
+        """Update the ranges for the pose commands.
+
+        Args:
+            env_ids: The environment IDs for which to update the ranges.
+            new_ranges: The new ranges for the pose commands.
+        """
+        env_ids_t = torch.as_tensor(env_ids, device=self.device, dtype=torch.long)
+        if env_ids_t.numel() == 0:
+            return
+
+        if isinstance(new_ranges, dict):
+            for name, values in new_ranges.items():
+                if name not in self._ranges:
+                    continue
+                values_t = torch.as_tensor(values, device=self.device, dtype=self._ranges[name].dtype)
+                if values_t.ndim == 1:
+                    values_t = values_t.unsqueeze(0).repeat(env_ids_t.shape[0], 1)
+                self._ranges[name][env_ids_t] = values_t
+            return
+
+        self._ranges["pos_x"][env_ids_t] = torch.tensor(new_ranges.pos_x, device=self.device).repeat(env_ids_t.shape[0], 1)
+        self._ranges["pos_y"][env_ids_t] = torch.tensor(new_ranges.pos_y, device=self.device).repeat(env_ids_t.shape[0], 1)
+        self._ranges["pos_z"][env_ids_t] = torch.tensor(new_ranges.pos_z, device=self.device).repeat(env_ids_t.shape[0], 1)
+        self._ranges["roll"][env_ids_t] = torch.tensor(new_ranges.roll, device=self.device).repeat(env_ids_t.shape[0], 1)
+        self._ranges["pitch"][env_ids_t] = torch.tensor(new_ranges.pitch, device=self.device).repeat(env_ids_t.shape[0], 1)
+        self._ranges["yaw"][env_ids_t] = torch.tensor(new_ranges.yaw, device=self.device).repeat(env_ids_t.shape[0], 1)
 
 
 @configclass
@@ -438,7 +490,7 @@ class VelocityCommand(CommandTerm):
 
         maxs = torch.tensor([self.cfg.ranges.lin_vel_x[1], self.cfg.ranges.lin_vel_y[1], self.cfg.ranges.ang_vel_z[1]], device=self.device)
         mins = torch.tensor([self.cfg.ranges.lin_vel_x[0], self.cfg.ranges.lin_vel_y[0], self.cfg.ranges.ang_vel_z[0]], device=self.device)
-        self.vel_command_b = torch.lerp(mins, maxs, (self.vel_command_b + 1) / 2)
+        self.vel_command_b = torch.lerp(mins, maxs, (self.vel_command_b + 1) / 2.0)
 
 
     def _set_debug_vis_impl(self, debug_vis: bool):
