@@ -282,16 +282,16 @@ class KyonEventCfg:
 @configclass
 class KyonRewardsCfg:
     # -- task
-    air_time = RewardTermCfg(
-        func=kyon_mdp.air_time_reward_wheels,
-        weight=5.0,
-        params={
-            "mode_time": 0.3,
-            "velocity_threshold": 0.5,
-            "asset_cfg": SceneEntityCfg("robot"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*"),
-        },
-    )
+    #air_time = RewardTermCfg(
+    #    func=kyon_mdp.air_time_reward_wheels,
+    #    weight=5.0,
+    #    params={
+    #        "mode_time": 0.3,
+    #        "velocity_threshold": 0.5,
+    #        "asset_cfg": SceneEntityCfg("robot"),
+    #        "sensor_cfg": SceneEntityCfg("contact_forces", body_names="wheel_.*"),
+    #    },
+    #)
 
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
@@ -312,11 +312,11 @@ class KyonRewardsCfg:
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="contact_.*")},
     # )
     base_motion = RewardTermCfg(
-        func=spot_mdp.base_motion_penalty, weight=-2.0, params={"asset_cfg": SceneEntityCfg("robot")}
+        func=spot_mdp.base_motion_penalty, weight=-0.4, params={"asset_cfg": SceneEntityCfg("robot")}
     )
-    base_orientation = RewardTermCfg(
-        func=spot_mdp.base_orientation_penalty, weight=-3, params={"asset_cfg": SceneEntityCfg("robot")}
-    )
+    #base_orientation = RewardTermCfg(
+    #    func=spot_mdp.base_orientation_penalty, weight=-3, params={"asset_cfg": SceneEntityCfg("robot")}
+    #)
     joint_acc = RewardTermCfg(
         func=kyon_mdp.joint_acceleration_penalty,
         weight=-1.0e-4,
@@ -353,7 +353,7 @@ class KyonTerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     body_contact = DoneTerm(
         func=mdp.illegal_contact,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis", "knee_pitch_.*"]), "threshold": 1.0},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis"]), "threshold": 1.0},
     )
     arms_contact = None
     terrain_out_of_bounds = DoneTerm(
