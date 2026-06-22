@@ -21,8 +21,9 @@ from isaaclab.assets import Articulation, ArticulationCfg, AssetBaseCfg, RigidOb
 
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, MySceneCfg
+# from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, MySceneCfg
 
+from kyon_isaac.tasks.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, MySceneCfg
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
 
 import torch
@@ -127,6 +128,13 @@ class KyonObservationsCfg:
             func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_pitch_.*", "wheel_.*"])}, noise=Unoise(n_min=-0.5, n_max=0.5)
         )
         actions = ObsTerm(func=mdp.last_action)
+
+        height_scan = ObsTerm(
+            func=kyon_mdp.height_scan,
+            params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+            noise=Unoise(n_min=-0.1, n_max=0.1),
+            clip=(-1.0, 1.0),
+        )
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -326,7 +334,15 @@ class KyonRewardsCfg:
         func=kyon_mdp.joint_position_on_wheels_penalty,
         weight=-0.5,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_.*", "knee_.*"]),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_roll.*", "knee_.*"]),
+            "stand_still_scale": 5.0,
+        },
+    )
+    joint_pos_hip_pitch = RewardTermCfg(
+        func=kyon_mdp.joint_position_on_wheels_penalty,
+        weight=-0.1,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_pitch.*"]),
             "stand_still_scale": 5.0,
         },
     )
@@ -344,6 +360,15 @@ class KyonRewardsCfg:
         func=kyon_mdp.joint_acceleration_penalty,
         weight=-1.0e-5,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=["wheel_.*"])},
+    )
+    wheel_tangential_velocity = RewardTermCfg(
+        func=kyon_mdp.wheel_tangential_velocity_penalty,
+        weight=-5.0e-3,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["wheel_.*"], body_names=["wheel_.*"]),
+            "wheel_radius": 0.124,
+            "tangential_axis": 2,
+        },
     )
 
 @configclass
@@ -407,7 +432,7 @@ class KyonWheelRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.terrain.terrain_generator = PYRAMID_STEPS_CFG
 
         # no height scan
-        self.scene.height_scanner = None
+        # self.scene.height_scanner = None
 
         self.events.reset_arms = EventTerm(
             func=kyon_mdp.reset_joint_target_to_default, 

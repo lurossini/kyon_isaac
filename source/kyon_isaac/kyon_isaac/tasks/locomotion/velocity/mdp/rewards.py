@@ -101,6 +101,46 @@ def joint_velocity_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) ->
     asset: Articulation = env.scene[asset_cfg.name]
     return torch.linalg.norm((asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
 
+def wheel_tangential_velocity_penalty(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    wheel_radius: float,
+    tangential_axis: int = 2,
+) -> torch.Tensor:
+    """Penalize wheel rolling slip using |v_t| - r|omega|.
+
+    The wheel tangential speed is taken from the selected local wheel-link axis
+    (default: z-axis -> ``tangential_axis=2``). Slip is the mismatch between
+    measured link speed on that axis and ideal rolling speed from joint spin.
+
+    Notes:
+    - ``asset_cfg`` must include both wheel ``joint_names`` and wheel ``body_names``.
+    - Absolute values are used to remain robust to wheel-side sign conventions.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    body_quat_w = getattr(asset.data, "body_quat_w", None)
+    if body_quat_w is None:
+        body_quat_w = getattr(asset.data, "body_link_quat_w", None)
+
+    body_lin_vel_w = getattr(asset.data, "body_lin_vel_w", None)
+    if body_lin_vel_w is None:
+        body_lin_vel_w = getattr(asset.data, "body_link_lin_vel_w", None)
+
+    if body_quat_w is None or body_lin_vel_w is None:
+        raise RuntimeError(
+            "Wheel slip reward requires body quaternion and linear velocity fields on articulation data."
+        )
+
+    wheel_quat_w = body_quat_w[:, asset_cfg.body_ids]
+    wheel_lin_vel_w = body_lin_vel_w[:, asset_cfg.body_ids]
+    wheel_lin_vel_local = math.quat_apply_inverse(wheel_quat_w, wheel_lin_vel_w)
+    tangential_speed = torch.abs(wheel_lin_vel_local[:, :, tangential_axis])
+
+    rolling_speed = wheel_radius * torch.abs(asset.data.joint_vel[:, asset_cfg.joint_ids])
+    slip = tangential_speed - rolling_speed
+    return torch.linalg.norm(slip, dim=1)
+
 def joint_torques_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Penalize joint torques on the articulation."""
     # extract the used quantities (to enable type-hinting)
