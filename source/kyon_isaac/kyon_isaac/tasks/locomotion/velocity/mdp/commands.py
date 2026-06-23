@@ -707,7 +707,7 @@ class TerrainBasedVelocityCommandPLAY(TerrainBasedVelocityCommand):
 class TerrainBasedVelocityCommandCfg(UniformVelocityCommandCfg):
     """Configuration for a terrain-based velocity command generator"""
     
-    class_type: type = TerrainBasedVelocityCommandPLAY
+    class_type: type = TerrainBasedVelocityCommand
 
     obs_term_name: str = MISSING
     """Name of the observation term that contains the height scan observation."""

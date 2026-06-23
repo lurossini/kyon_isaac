@@ -98,6 +98,10 @@ class KyonCommandsCfg:
     base_velocity = kyon_mdp.TerrainBasedVelocityCommandCfg(
         asset_name="robot",
         obs_term_name="height_scan",
+        resampling_time_range=(10.0, 10.0),
+        rel_standing_envs=0.1,
+        rel_heading_envs=0.0,
+        heading_command=False,
         difficulty_min=0.3,
         debug_vis=True,
         ranges=kyon_mdp.TerrainBasedVelocityCommandCfg.Ranges(
@@ -367,7 +371,7 @@ class KyonRewardsCfg:
     )
     joint_pos_hip_pitch = RewardTermCfg(
         func=kyon_mdp.joint_position_on_wheels_penalty,
-        weight=-0.1,
+        weight=-2.,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=["hip_pitch.*"]),
             "stand_still_scale": 5.0,
