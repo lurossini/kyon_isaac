@@ -647,10 +647,18 @@ class TerrainBasedVelocityCommand(UniformVelocityCommand):
 
         diff = self.compute_terrain_difficulty()
         terrain_scale = 1.0 + self.cfg.difficulty_min - diff
-        maxs = torch.tensor([self.cfg.ranges.lin_vel_x[1] * terrain_scale, self.cfg.ranges.lin_vel_y[1] * terrain_scale, self.cfg.ranges.ang_vel_z[1] * terrain_scale], device=self.device)
-        mins = torch.tensor([self.cfg.ranges.lin_vel_x[0] * terrain_scale, self.cfg.ranges.lin_vel_y[0] * terrain_scale, self.cfg.ranges.ang_vel_z[0] * terrain_scale], device=self.device)
+        maxs = torch.stack([
+            self.cfg.ranges.lin_vel_x[1] * terrain_scale,
+            self.cfg.ranges.lin_vel_y[1] * terrain_scale,
+            self.cfg.ranges.ang_vel_z[1] * terrain_scale,
+        ], dim=-1)
+
+        mins = torch.stack([
+            self.cfg.ranges.lin_vel_x[0] * terrain_scale,
+            self.cfg.ranges.lin_vel_y[0] * terrain_scale,
+            self.cfg.ranges.ang_vel_z[0] * terrain_scale,
+        ], dim=-1)
         self.vel_command_b = torch.lerp(mins, maxs, (self.vel_command_b + 1) / 2.0)
-        print(self.vel_command_b)
 
 
     def compute_terrain_difficulty(self) -> torch.Tensor:
