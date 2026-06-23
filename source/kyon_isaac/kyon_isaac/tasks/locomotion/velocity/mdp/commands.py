@@ -640,7 +640,26 @@ class TerrainBasedVelocityCommand(UniformVelocityCommand):
             )
 
         self._obs_term_cfg = getattr(obs_group_cfg, obs_term_key)
+        self.last_sampled_vel = torch.zeros_like(self.vel_command_b)
 
+    def _resample_command(self, env_ids: Sequence[int]):
+        # sample velocity commands
+        r = torch.empty(len(env_ids), device=self.device)
+        # -- linear velocity - x direction
+        self.vel_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.lin_vel_x)
+        # -- linear velocity - y direction
+        self.vel_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.lin_vel_y)
+        # -- ang vel yaw - rotation around z
+        self.vel_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.ang_vel_z)
+        # heading target
+        if self.cfg.heading_command:
+            self.heading_target[env_ids] = r.uniform_(*self.cfg.ranges.heading)
+            # update heading envs
+            self.is_heading_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_heading_envs
+        # update standing envs
+        self.is_standing_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_standing_envs
+
+        self.last_sampled_vel[env_ids] = self.vel_command_b[env_ids].clone()
 
     def _update_command(self):
         """Post-processes the velocity command scaling to the defined ranges (mapping from [-1, 1] to the defined range)"""
@@ -658,7 +677,7 @@ class TerrainBasedVelocityCommand(UniformVelocityCommand):
             self.cfg.ranges.lin_vel_y[0] * terrain_scale,
             self.cfg.ranges.ang_vel_z[0] * terrain_scale,
         ], dim=-1)
-        self.vel_command_b = torch.lerp(mins, maxs, (self.vel_command_b + 1) / 2.0)
+        self.vel_command_b = torch.lerp(mins, maxs, (self.last_sampled_vel + 1) / 2.0)
 
 
     def compute_terrain_difficulty(self) -> torch.Tensor:
