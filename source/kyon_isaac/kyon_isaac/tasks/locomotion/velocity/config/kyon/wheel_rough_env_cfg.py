@@ -67,9 +67,15 @@ PYRAMID_STEPS_CFG = terrain_gen.TerrainGeneratorCfg(
 )
 
 @configclass
-class KyonActionsCfg:
+class KyonActionsWheelsCfg:
     """Action specifications for the MDP."""
     joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*", "ankle_yaw_.*"], scale=0.5, use_default_offset=True)
+    joint_vel = mdp.JointVelocityActionCfg(asset_name="robot", joint_names=["wheel_.*"], scale=30.)
+
+@configclass
+class KyonActionsSimpleWheelsCfg:
+    """Action specifications for the MDP."""
+    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=["hip_roll_.*", "hip_pitch_.*", "knee_pitch_.*"], scale=0.5, use_default_offset=True)
     joint_vel = mdp.JointVelocityActionCfg(asset_name="robot", joint_names=["wheel_.*"], scale=30.)
 
 @configclass
@@ -84,7 +90,7 @@ class KyonCommandsCfg:
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1., 1.), ang_vel_z=(-1.5, 1.5)
+            lin_vel_x=(-1.0, 1.0), lin_vel_y=(-1., 1.), ang_vel_z=(-1.5, 1.5)
         ),
     )
 
@@ -96,7 +102,7 @@ class KyonCommandsPLAYCfg:
         asset_name="robot",
         debug_vis=True,
         ranges=kyon_mdp.VelocityCommandCfg.Ranges(
-            lin_vel_x=(-2.7, 2.7), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.5, 1.5)
+            lin_vel_x=(-1.0, 1.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.5, 1.5)
         ),
     )
 
@@ -198,10 +204,10 @@ class KyonEventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="wheel_.*"),
-            "static_friction_range": (1.5, 2.2),
-            "dynamic_friction_range": (1.5, 2.0),
+            "static_friction_range": (0.4, 1.2),
+            "dynamic_friction_range": (0.3, 1.0),
             "restitution_range": (0.0, 0.0),
-            "num_buckets": 64,
+            "num_buckets": 128,
             "make_consistent": True,
         },
     )
@@ -396,7 +402,7 @@ class KyonWheelRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
 
     # Basic settings
     observations: KyonObservationsCfg = KyonObservationsCfg()
-    actions: KyonActionsCfg = KyonActionsCfg()
+    actions: KyonActionsWheelsCfg = KyonActionsWheelsCfg()
     commands: KyonCommandsCfg = KyonCommandsCfg()
 
     # MDP setting
@@ -479,7 +485,9 @@ class KyonWheelRoughEnvCfg_PLAY(KyonWheelRoughEnvCfg):
         )
 
 @configclass
-class KyonSimpleWheelFlatEnvCfg(KyonWheelRoughEnvCfg):
+class KyonSimpleWheelRoughEnvCfg(KyonWheelRoughEnvCfg):
+
+    actions: KyonActionsSimpleWheelsCfg = KyonActionsSimpleWheelsCfg()
     
     def __post_init__(self):
         # post init of parent
@@ -488,8 +496,10 @@ class KyonSimpleWheelFlatEnvCfg(KyonWheelRoughEnvCfg):
 
 
 @configclass
-class KyonSimpleWheelFlatEnvCfg_PLAY(KyonWheelRoughEnvCfg_PLAY):
-    
+class KyonSimpleWheelRoughEnvCfg_PLAY(KyonWheelRoughEnvCfg_PLAY):
+
+    actions: KyonActionsSimpleWheelsCfg = KyonActionsSimpleWheelsCfg()
+
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
