@@ -20,6 +20,9 @@ from isaaclab.managers import CommandTerm
 from isaaclab.markers import VisualizationMarkers
 from isaaclab.utils.math import combine_frame_transforms, compute_pose_error, quat_from_euler_xyz, quat_unique, quat_conjugate, quat_apply, quat_mul
 
+from isaaclab.envs.mdp.commands import UniformVelocityCommand
+from isaaclab.envs.mdp.commands.commands_cfg import UniformVelocityCommandCfg
+
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
@@ -592,3 +595,125 @@ class VelocityCommandCfg(CommandTermCfg):
     # Set the scale of the visualization markers to (0.5, 0.5, 0.5)
     goal_vel_visualizer_cfg.markers["arrow"].scale = (0.5, 0.5, 0.5)
     current_vel_visualizer_cfg.markers["arrow"].scale = (0.5, 0.5, 0.5)
+
+
+class TerrainBasedVelocityCommand(UniformVelocityCommand):
+
+    """Terrain-based velocity command"""
+    cfg: TerrainBasedVelocityCommandCfg
+
+    def __init__(self, cfg: TerrainBasedVelocityCommandCfg, env: ManagerBasedEnv):
+        """Initialize the CommandTerm. The terrain difficulty is measured from the height scan observation
+
+        Args:
+            cfg: The configuration of the command generator.
+            env: The environment.
+
+        Raises:
+            ValueError: If the observation term containing the height scan is not found.
+        """
+        # Initialize the base class
+        super().__init__(cfg, env)
+
+        # Resolve observation term config from env cfg (manager-independent).
+        obs_term_name = cfg.obs_term_name
+        if "." in obs_term_name:
+            obs_group_name, obs_term_key = obs_term_name.split(".", 1)
+        elif "/" in obs_term_name:
+            obs_group_name, obs_term_key = obs_term_name.split("/", 1)
+        else:
+            obs_group_name, obs_term_key = "policy", obs_term_name
+
+        observations_cfg = getattr(self._env.cfg, "observations", None)
+        if observations_cfg is None:
+            raise ValueError("Environment config does not expose observations cfg.")
+
+        if not hasattr(observations_cfg, obs_group_name):
+            raise ValueError(
+                f"Observation group '{obs_group_name}' not found in env cfg observations."
+            )
+
+        obs_group_cfg = getattr(observations_cfg, obs_group_name)
+        if not hasattr(obs_group_cfg, obs_term_key):
+            raise ValueError(
+                f"Observation term '{obs_term_key}' not found in observations group '{obs_group_name}'."
+            )
+
+        self._obs_term_cfg = getattr(obs_group_cfg, obs_term_key)
+
+
+    def _update_command(self):
+        """Post-processes the velocity command scaling to the defined ranges (mapping from [-1, 1] to the defined range)"""
+
+        diff = self.compute_terrain_difficulty()
+        terrain_scale = 1.0 + self.cfg.difficulty_min - diff
+        maxs = torch.tensor([self.cfg.ranges.lin_vel_x[1] * terrain_scale, self.cfg.ranges.lin_vel_y[1] * terrain_scale, self.cfg.ranges.ang_vel_z[1] * terrain_scale], device=self.device)
+        mins = torch.tensor([self.cfg.ranges.lin_vel_x[0] * terrain_scale, self.cfg.ranges.lin_vel_y[0] * terrain_scale, self.cfg.ranges.ang_vel_z[0] * terrain_scale], device=self.device)
+        self.vel_command_b = torch.lerp(mins, maxs, (self.vel_command_b + 1) / 2.0)
+        print(self.vel_command_b)
+
+
+    def compute_terrain_difficulty(self) -> torch.Tensor:
+        """Compute the terrain difficulty"""
+
+        hs = self._obs_term_cfg.func(self._env, **self._obs_term_cfg.params)
+        height_var = torch.var(hs, dim=-1)
+        height_max = torch.max(hs, dim=-1).values
+        height_min = torch.min(hs, dim=-1).values
+
+        step_likelihood = (height_max - height_min)
+
+        # normalize (tune constants per sim scale)
+        difficulty = torch.tanh(3.0 * step_likelihood + 2.0 * height_var)
+        difficulty = torch.clamp(difficulty, min=self.cfg.difficulty_min, max=1.0)
+        
+        return difficulty
+    
+class TerrainBasedVelocityCommandPLAY(TerrainBasedVelocityCommand):
+    """Terrain-based velocity command for PLAY"""
+
+    cfg: TerrainBasedVelocityCommandPLAYCfg
+
+    def __init__(self, cfg: TerrainBasedVelocityCommandCfg, env: ManagerBasedEnv):
+        """Initialize the CommandTerm. The terrain difficulty is measured from the height scan observation
+
+        Args:
+            cfg: The configuration of the command generator.
+            env: The environment.
+
+        Raises:
+            ValueError: If the observation term containing the height scan is not found.
+        """
+        # Initialize the base class
+        super().__init__(cfg, env)
+
+    def _resample_command(self, env_ids: Sequence[int]):
+        pass
+
+    def set_command(self, cmd: torch.Tensor):
+        """Set the velocity command directly."""
+        self.vel_command_b = cmd
+
+    
+@configclass
+class TerrainBasedVelocityCommandCfg(UniformVelocityCommandCfg):
+    """Configuration for a terrain-based velocity command generator"""
+    
+    class_type: type = TerrainBasedVelocityCommandPLAY
+
+    obs_term_name: str = MISSING
+    """Name of the observation term that contains the height scan observation."""
+
+    difficulty_min: float = 0.2
+    """Minimum terrain difficulty returned by the command generator."""
+
+    resampling_time_range: tuple[float, float] = (1e9, 1e9)
+
+@configclass 
+class TerrainBasedVelocityCommandPLAYCfg(TerrainBasedVelocityCommandCfg):
+    """Configuration for a terrain-based velocity command generator for PLAY"""
+    
+    class_type: type = TerrainBasedVelocityCommandPLAY
+
+
+

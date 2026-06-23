@@ -77,9 +77,9 @@ class MySceneCfg(InteractiveSceneCfg):
         debug_vis=True,
         mesh_prim_paths=["/World/ground"],
         update_period=0.05,
-        update_occlusion_period=0.1,
-        failure_rate=0.05,
-        interval_range_s=(5.0, 15.0)
+        # update_occlusion_period=0.1,
+        # failure_rate=0.05,
+        # interval_range_s=(5.0, 15.0)
     )
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
     

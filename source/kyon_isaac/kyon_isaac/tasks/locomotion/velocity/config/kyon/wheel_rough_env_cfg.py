@@ -15,7 +15,7 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg, TiledCameraCfg
+from isaaclab.sensors import ContactSensorCfg, ImuCfg, CameraCfg, TiledCameraCfg, patterns
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
 from isaaclab.assets import Articulation, ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 
@@ -25,6 +25,7 @@ import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 
 from kyon_isaac.tasks.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, MySceneCfg
 import kyon_isaac.tasks.locomotion.velocity.mdp as kyon_mdp
+from kyon_isaac.sensors.ray_caster import KyonRayCasterCfg
 
 import torch
 # from kyon_isaac.sensors import ActionHistorySensorCfg
@@ -82,15 +83,25 @@ class KyonActionsSimpleWheelsCfg:
 class KyonCommandsCfg:
     """Command specifications for the MDP."""
 
-    base_velocity = mdp.UniformVelocityCommandCfg(
+    # base_velocity = mdp.UniformVelocityCommandCfg(
+    #     asset_name="robot",
+    #     resampling_time_range=(10.0, 10.0),
+    #     rel_standing_envs=0.1,
+    #     rel_heading_envs=0.0,
+    #     heading_command=False,
+    #     debug_vis=True,
+    #     ranges=mdp.UniformVelocityCommandCfg.Ranges(
+    #         lin_vel_x=(-1.0, 1.0), lin_vel_y=(-1., 1.), ang_vel_z=(-1.5, 1.5)
+    #     ),
+    # )
+
+    base_velocity = kyon_mdp.TerrainBasedVelocityCommandCfg(
         asset_name="robot",
-        resampling_time_range=(10.0, 10.0),
-        rel_standing_envs=0.1,
-        rel_heading_envs=0.0,
-        heading_command=False,
+        obs_term_name="height_scan",
+        difficulty_min=0.3,
         debug_vis=True,
-        ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-1.0, 1.0), lin_vel_y=(-1., 1.), ang_vel_z=(-1.5, 1.5)
+        ranges=kyon_mdp.TerrainBasedVelocityCommandCfg.Ranges(
+            lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.5, 1.5)
         ),
     )
 
@@ -98,11 +109,21 @@ class KyonCommandsCfg:
 class KyonCommandsPLAYCfg:
     """Command specifications for the MDP in play mode."""
 
-    base_velocity = kyon_mdp.VelocityCommandCfg(
+    # base_velocity = kyon_mdp.VelocityCommandCfg(
+    #     asset_name="robot",
+    #     debug_vis=True,
+    #     ranges=kyon_mdp.VelocityCommandCfg.Ranges(
+    #         lin_vel_x=(-1.0, 1.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.5, 1.5)
+    #     ),
+    # )
+
+    base_velocity = kyon_mdp.TerrainBasedVelocityCommandPLAYCfg(
         asset_name="robot",
+        obs_term_name="height_scan",
+        difficulty_min=0.3,
         debug_vis=True,
-        ranges=kyon_mdp.VelocityCommandCfg.Ranges(
-            lin_vel_x=(-1.0, 1.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.5, 1.5)
+        ranges=kyon_mdp.TerrainBasedVelocityCommandCfg.Ranges(
+            lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.5, 1.5)
         ),
     )
 
@@ -487,13 +508,13 @@ class KyonWheelRoughEnvCfg_PLAY(KyonWheelRoughEnvCfg):
 @configclass
 class KyonSimpleWheelRoughEnvCfg(KyonWheelRoughEnvCfg):
 
+    
     actions: KyonActionsSimpleWheelsCfg = KyonActionsSimpleWheelsCfg()
     
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
         self.scene.robot = KYON_SIMPLE_WHEEL_BODY_CFG_TRAIN.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
 
 @configclass
 class KyonSimpleWheelRoughEnvCfg_PLAY(KyonWheelRoughEnvCfg_PLAY):
