@@ -143,7 +143,8 @@ def wheel_tangential_velocity_penalty(
 
     # activate reward only when the wheel is in contact
     contact_sensor: ContactSensor = env.scene.sensors[contact_sensor_cfg.name]
-    in_contact = contact_sensor.data.in_contact[:, contact_sensor_cfg.body_ids]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    in_contact = torch.max(torch.norm(net_contact_forces[:, :, contact_sensor_cfg.body_ids], dim=-1), dim=1)[0] > 1.0
     slip = torch.where(in_contact, slip, torch.zeros_like(slip))
     
     return torch.linalg.norm(slip, dim=1)
