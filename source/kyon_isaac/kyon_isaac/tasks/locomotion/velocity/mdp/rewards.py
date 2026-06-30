@@ -104,6 +104,7 @@ def joint_velocity_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) ->
 def wheel_tangential_velocity_penalty(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg,
+    contact_sensor_cfg: SceneEntityCfg,
     wheel_radius: float,
     tangential_axis: int = 2,
 ) -> torch.Tensor:
@@ -139,6 +140,12 @@ def wheel_tangential_velocity_penalty(
 
     rolling_speed = wheel_radius * torch.abs(asset.data.joint_vel[:, asset_cfg.joint_ids])
     slip = tangential_speed - rolling_speed
+
+    # activate reward only when the wheel is in contact
+    contact_sensor: ContactSensor = env.scene.sensors[contact_sensor_cfg.name]
+    in_contact = contact_sensor.data.in_contact[:, contact_sensor_cfg.body_ids]
+    slip = torch.where(in_contact, slip, torch.zeros_like(slip))
+    
     return torch.linalg.norm(slip, dim=1)
 
 def joint_torques_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:

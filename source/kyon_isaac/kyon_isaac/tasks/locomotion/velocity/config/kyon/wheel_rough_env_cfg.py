@@ -47,6 +47,7 @@ PYRAMID_STEPS_CFG = terrain_gen.TerrainGeneratorCfg(
     vertical_scale=0.005,
     slope_threshold=0.75,
     use_cache=False,
+    curriculum=True,
     sub_terrains={
         "pyramid_stairs": terrain_gen.MeshPyramidStairsTerrainCfg(
             proportion=0.2,
@@ -102,7 +103,7 @@ class KyonCommandsCfg:
         rel_standing_envs=0.1,
         rel_heading_envs=0.0,
         heading_command=False,
-        difficulty_min=0.3,
+        difficulty_min=0.5,
         debug_vis=True,
         ranges=kyon_mdp.TerrainBasedVelocityCommandCfg.Ranges(
             lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.5, 1.5)
@@ -124,7 +125,7 @@ class KyonCommandsPLAYCfg:
     base_velocity = kyon_mdp.TerrainBasedVelocityCommandPLAYCfg(
         asset_name="robot",
         obs_term_name="height_scan",
-        difficulty_min=0.3,
+        difficulty_min=0.5,
         debug_vis=True,
         ranges=kyon_mdp.TerrainBasedVelocityCommandCfg.Ranges(
             lin_vel_x=(-2.0, 2.0), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.5, 1.5)
@@ -397,6 +398,7 @@ class KyonRewardsCfg:
         weight=-5.0e-3,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=["wheel_.*"], body_names=["wheel_.*"]),
+            "contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=["wheel_.*"]),
             "wheel_radius": 0.124,
             "tangential_axis": 2,
         },
