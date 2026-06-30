@@ -719,7 +719,7 @@ class TerrainBasedVelocityCommandPLAY(TerrainBasedVelocityCommand):
 
     def set_command(self, cmd: torch.Tensor):
         """Set the velocity command directly."""
-        self.vel_command_b = cmd
+        self.last_sampled_vel = cmd
 
     
 @configclass
