@@ -206,14 +206,15 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             joint_stiffness[idx] = act.stiffness
             joint_damping[idx] = act.damping
     deploy_metadata = {
+        'joint_stiffness': joint_stiffness,
+        'joint_damping': joint_damping,
         'default_joint_pos':robot.data.default_joint_pos[0, :].tolist(),
         'joint_names': robot.joint_names,
         'ctrl_dt': mb_rl_env.step_dt,
         'observations': mb_rl_env.observation_manager.serialize(),
         'actions': mb_rl_env.action_manager.serialize(),
         'commands': env_cfg.commands.to_dict(),
-        'joint_stiffness': joint_stiffness,
-        'joint_damping': joint_damping,
+        'scene': env_cfg.scene.to_dict(),
     }
 
     # export policy to onnx/jit
