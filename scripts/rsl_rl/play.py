@@ -209,6 +209,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         'joint_stiffness': joint_stiffness,
         'joint_damping': joint_damping,
         'default_joint_pos':robot.data.default_joint_pos[0, :].tolist(),
+        'default_joint_vel':robot.data.default_joint_vel[0, :].tolist(),
         'joint_names': robot.joint_names,
         'ctrl_dt': mb_rl_env.step_dt,
         'observations': mb_rl_env.observation_manager.serialize(),
